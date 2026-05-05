@@ -47,11 +47,11 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex flex-col items-center justify-center p-6">
       <div className="text-center mb-12">
         <div className="text-5xl mb-4">🏠</div>
-        <h1 className="text-3xl font-bold text-white mb-1">彭家 AI 家教</h1>
-        <p className="text-slate-400 text-sm">Peng Family AI Tutor Platform</p>
+        <h1 className="text-3xl font-bold text-slate-800 mb-1">彭家 AI 家教</h1>
+        <p className="text-slate-500 text-sm">Peng Family AI Tutor Platform</p>
       </div>
       <div className="w-full max-w-md space-y-3">
         {loading && <div className="space-y-3">{[1,2].map(i=><div key={i} className="h-24 bg-slate-800 rounded-2xl animate-pulse"/>)}</div>}
