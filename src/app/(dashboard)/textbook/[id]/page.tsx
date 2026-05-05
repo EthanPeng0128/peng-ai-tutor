@@ -226,7 +226,7 @@ export default function TextbookReaderPage() {
                     <RefreshCw size={15}/> 重新生成
                   </button>
                 </div>
-                <div ref={summaryRef} style={{background:'white',borderRadius:'14px',padding:'8px',boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}} dangerouslySetInnerHTML={{__html: summaryHtml}}/>
+                <div style={{width:"100%",overflowX:"auto",WebkitOverflowScrolling:"touch"}}><div ref={summaryRef} style={{width:"1280px",aspectRatio:"16/9",background:"white",borderRadius:"14px",padding:"8px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",transformOrigin:"top left"}} dangerouslySetInnerHTML={{__html: summaryHtml}}/></div>
               </div>
             )}
           </div>
