@@ -1,21 +1,21 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { QUIZ_MODES, DIFFICULTY_LEVELS, getSubjectEmoji } from '@/lib/constants'
-import { ChevronRight, Loader2, RotateCcw, AlertCircle } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
+import { QUIZ_MODES, DIFFICULTY_LEVELS, getSubjectEmoji, getSubjectColor } from '@/lib/constants'
+import { ChevronRight, Loader2, RotateCcw, AlertCircle, ArrowLeft, Check } from 'lucide-react'
 
-type Phase = 'select' | 'configure' | 'loading' | 'result'
+type Phase = 'select-subject' | 'select-textbooks' | 'configure' | 'loading' | 'result'
 
 export default function ReviewPage() {
   const [childId, setChildId] = useState('')
   const [textbooks, setTextbooks] = useState<any[]>([])
   const [wrongAnswers, setWrongAnswers] = useState<any[]>([])
-  const [selected, setSelected] = useState<any>(null)
+  const [selectedSubject, setSelectedSubject] = useState<string>('')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [mode, setMode] = useState('fill')
   const [difficulty, setDifficulty] = useState('medium')
   const [count, setCount] = useState(10)
-  const [phase, setPhase] = useState<Phase>('select')
+  const [phase, setPhase] = useState<Phase>('select-subject')
   const [result, setResult] = useState<any>(null)
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [checked, setChecked] = useState(false)
@@ -40,20 +40,46 @@ export default function ReviewPage() {
     return () => clearInterval(interval)
   }, [timerActive])
 
+  // 計算每個科目的課文數量
+  const subjectCounts: Record<string, number> = {}
+  textbooks.forEach(t => {
+    subjectCounts[t.subject_name] = (subjectCounts[t.subject_name] || 0) + 1
+  })
+
+  const SUBJECTS = ['國語', '英文', '數學', '理化', '社會']
+  const subjectsWithData = SUBJECTS.filter(s => subjectCounts[s] > 0)
+
+  const filteredTextbooks = textbooks.filter(t => t.subject_name === selectedSubject)
+  const selectedTextbooks = textbooks.filter(t => selectedIds.has(t.id))
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(id)) newSet.delete(id)
+      else newSet.add(id)
+      return newSet
+    })
+  }
+
   async function startQuiz() {
-    if (!selected?.content && !wrongOnly) return
+    if (selectedTextbooks.length === 0 && !wrongOnly) return
     setPhase('loading'); setAnswers({}); setChecked(false); setTimer(0)
 
-    let content = selected?.content ?? ''
-    // If wrong only mode, build content from wrong answers
+    let content = ''
+    let title = '複習'
     if (wrongOnly && wrongAnswers.length > 0) {
       content = wrongAnswers.slice(0, 20).map(w => `問題：${w.question}\n答案：${w.correct_answer}`).join('\n\n')
+      title = '錯題重練'
+    } else {
+      content = selectedTextbooks.map(t => `【${t.lesson_number} ${t.title}】\n${t.content}`).join('\n\n---\n\n')
+      title = selectedTextbooks.length === 1 ? selectedTextbooks[0].title : `${selectedSubject} 多課複習（${selectedTextbooks.length} 課）`
     }
 
+    const grade = selectedTextbooks[0]?.grade ?? '國二'
     const res = await fetch('/api/quiz', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, mode, difficulty, count, grade: selected?.grade ?? '國二', title: selected?.title ?? '錯題複習' }),
+      body: JSON.stringify({ content, mode, difficulty, count, grade, title }),
     })
     const data = await res.json()
     setResult(data)
@@ -69,10 +95,10 @@ export default function ReviewPage() {
       const correctAns = (mode === 'exam' ? q.answer : q.blanks?.[0]) ?? ''
       if (userAns === correctAns) correct++
       else {
-        // Save to wrong answers
+        const refTextbook = selectedTextbooks[0]
         supabase.from('wrong_answers').insert({
-          child_id: childId, textbook_id: selected?.id,
-          subject_name: selected?.subject_name,
+          child_id: childId, textbook_id: refTextbook?.id,
+          subject_name: refTextbook?.subject_name,
           question: q.text, correct_answer: correctAns,
           student_answer: userAns,
         })
@@ -80,12 +106,12 @@ export default function ReviewPage() {
     })
     const s = Math.round((correct / qs.length) * 100)
     setScore(s); setChecked(true); setTimerActive(false)
+    const refTextbook = selectedTextbooks[0]
     supabase.from('study_sessions').insert({
-      child_id: childId, textbook_id: selected?.id,
-      subject_name: selected?.subject_name, activity_type: mode, score: s,
+      child_id: childId, textbook_id: refTextbook?.id,
+      subject_name: refTextbook?.subject_name, activity_type: mode, score: s,
       total_questions: qs.length, correct_count: correct, duration_mins: Math.round(timer/60),
     })
-    // Refresh wrong answers
     supabase.from('wrong_answers').select('*').eq('child_id', childId).eq('mastered', false).then(({ data }) => setWrongAnswers(data ?? []))
   }
 
@@ -96,36 +122,61 @@ export default function ReviewPage() {
 
   function formatTime(s: number) { return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}` }
 
-  function reset() { setPhase('select'); setResult(null); setChecked(false); setSelected(null); setWrongOnly(false) }
+  function reset() {
+    setPhase('select-subject'); setResult(null); setChecked(false)
+    setSelectedIds(new Set()); setSelectedSubject(''); setWrongOnly(false)
+  }
 
-  // ── SELECT ──
-  if (phase === 'select') return (
-    <div className="p-4 space-y-3 animate-in">
-      <div className="flex gap-2">
-        <button onClick={() => setTab('textbook')} className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${tab === 'textbook' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`}>選課文複習</button>
-        <button onClick={() => setTab('wrong')} className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-1 ${tab === 'wrong' ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
-          <AlertCircle size={14} /> 錯題重練 {wrongAnswers.length > 0 && <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{wrongAnswers.length}</span>}
+  // ============ 通用樣式 ============
+  const containerStyle: React.CSSProperties = { padding: '16px', background: '#f8fafc', minHeight: '100%', overflowY: 'auto' }
+  const cardStyle: React.CSSProperties = { background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }
+  const titleStyle: React.CSSProperties = { fontSize: '15px', fontWeight: 700, color: '#1e293b', margin: 0 }
+  const subTitleStyle: React.CSSProperties = { fontSize: '13px', color: '#64748b', margin: 0 }
+  const backBtnStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', color: '#1e293b', fontWeight: 600, cursor: 'pointer' }
+
+  // ============ 步驟1：選科目 ============
+  if (phase === 'select-subject') return (
+    <div style={containerStyle}>
+      {/* 上方 Tab */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        <button onClick={() => setTab('textbook')}
+          style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer',
+            background: tab === 'textbook' ? '#2563eb' : 'white', color: tab === 'textbook' ? 'white' : '#64748b',
+            boxShadow: tab === 'textbook' ? '0 2px 6px rgba(37,99,235,0.3)' : '0 1px 3px rgba(0,0,0,0.05)' }}>
+          📚 選課文複習
+        </button>
+        <button onClick={() => setTab('wrong')}
+          style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer',
+            background: tab === 'wrong' ? '#ef4444' : 'white', color: tab === 'wrong' ? 'white' : '#64748b',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+            boxShadow: tab === 'wrong' ? '0 2px 6px rgba(239,68,68,0.3)' : '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <AlertCircle size={14}/> 錯題重練 {wrongAnswers.length > 0 && <span style={{ background: 'rgba(255,255,255,0.3)', padding: '0 6px', borderRadius: '10px', fontSize: '11px' }}>{wrongAnswers.length}</span>}
         </button>
       </div>
 
       {tab === 'textbook' && (
         <>
-          <h2 className="text-sm text-slate-400">選擇課文</h2>
-          {textbooks.length === 0 ? (
-            <div className="card p-8 text-center text-slate-500"><p className="text-3xl mb-2">📚</p><p>請先上傳課文</p></div>
+          <p style={{ ...subTitleStyle, marginBottom: '12px', fontWeight: 600 }}>選擇科目</p>
+          {subjectsWithData.length === 0 ? (
+            <div style={{ ...cardStyle, padding: '32px', textAlign: 'center' }}>
+              <p style={{ fontSize: '36px', margin: '0 0 8px' }}>📚</p>
+              <p style={{ ...subTitleStyle }}>請先在「課本資料庫」上傳課文</p>
+            </div>
           ) : (
-            <div className="space-y-2">
-              {textbooks.map(t => (
-                <button key={t.id} onClick={() => { setSelected(t); setWrongOnly(false); setPhase('configure') }}
-                  className="w-full card-hover p-4 flex items-center gap-3 text-left">
-                  <span className="text-2xl">{getSubjectEmoji(t.subject_name)}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{t.lesson_number}：{t.title}</p>
-                    <p className="text-xs text-slate-500">{t.grade} · {t.semester}</p>
-                  </div>
-                  <ChevronRight size={16} className="text-slate-600" />
-                </button>
-              ))}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
+              {subjectsWithData.map(s => {
+                const color = getSubjectColor(s)
+                return (
+                  <button key={s} onClick={() => { setSelectedSubject(s); setSelectedIds(new Set()); setPhase('select-textbooks') }}
+                    style={{ ...cardStyle, padding: '20px 16px', cursor: 'pointer', textAlign: 'center', borderTop: `3px solid ${color}`, transition: 'transform 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
+                    <div style={{ fontSize: '32px', marginBottom: '6px' }}>{getSubjectEmoji(s)}</div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '4px' }}>{s}</div>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>{subjectCounts[s]} 課</div>
+                  </button>
+                )
+              })}
             </div>
           )}
         </>
@@ -134,23 +185,26 @@ export default function ReviewPage() {
       {tab === 'wrong' && (
         <>
           {wrongAnswers.length === 0 ? (
-            <div className="card p-8 text-center text-slate-500"><p className="text-3xl mb-2">🎉</p><p>沒有錯題！繼續保持！</p></div>
+            <div style={{ ...cardStyle, padding: '32px', textAlign: 'center' }}>
+              <p style={{ fontSize: '36px', margin: '0 0 8px' }}>🎉</p>
+              <p style={{ ...titleStyle }}>沒有錯題！繼續保持！</p>
+            </div>
           ) : (
             <>
               <button onClick={() => { setWrongOnly(true); setPhase('configure') }}
-                className="w-full bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2">
-                <AlertCircle size={16} /> 開始錯題重練（{wrongAnswers.length} 題）
+                style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#ef4444', color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}>
+                <AlertCircle size={16}/> 開始錯題重練（{wrongAnswers.length} 題）
               </button>
-              <div className="space-y-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {wrongAnswers.map(w => (
-                  <div key={w.id} className="card p-4">
-                    <div className="flex items-start gap-2">
-                      <span className="text-lg">{getSubjectEmoji(w.subject_name ?? '')}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-300 line-clamp-2">{w.question}</p>
-                        <p className="text-xs text-emerald-400 mt-1">✓ {w.correct_answer}</p>
+                  <div key={w.id} style={{ ...cardStyle, padding: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                      <span style={{ fontSize: '18px' }}>{getSubjectEmoji(w.subject_name ?? '')}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '13px', color: '#334155', margin: 0, lineHeight: 1.5 }}>{w.question}</p>
+                        <p style={{ fontSize: '12px', color: '#10b981', margin: '4px 0 0', fontWeight: 600 }}>✓ {w.correct_answer}</p>
                       </div>
-                      <button onClick={() => markMastered(w.id)} className="text-xs text-slate-500 hover:text-emerald-400 transition-colors flex-shrink-0 mt-1">✓ 已熟</button>
+                      <button onClick={() => markMastered(w.id)} style={{ fontSize: '11px', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', flexShrink: 0 }}>✓ 已熟</button>
                     </div>
                   </div>
                 ))}
@@ -162,73 +216,144 @@ export default function ReviewPage() {
     </div>
   )
 
-  // ── CONFIGURE ──
-  if (phase === 'configure') return (
-    <div className="p-4 space-y-4 animate-in">
-      <button onClick={() => setPhase('select')} className="text-blue-400 text-sm">← 重新選擇</button>
-      <div className="card p-3 flex items-center gap-3">
-        <span className="text-2xl">{wrongOnly ? '❌' : getSubjectEmoji(selected?.subject_name ?? '')}</span>
-        <div>
-          <p className="font-medium text-white text-sm">{wrongOnly ? `錯題重練（${wrongAnswers.length} 題）` : selected?.title}</p>
-          <p className="text-xs text-slate-500">{wrongOnly ? '自動出題' : `${selected?.subject_name} · ${selected?.grade}`}</p>
+  // ============ 步驟2：選課文（多選） ============
+  if (phase === 'select-textbooks') {
+    const subjectColor = getSubjectColor(selectedSubject)
+    return (
+      <div style={containerStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <button onClick={() => setPhase('select-subject')} style={backBtnStyle}>
+            <ArrowLeft size={14}/> 返回
+          </button>
+          <div>
+            <p style={{ ...titleStyle }}>{getSubjectEmoji(selectedSubject)} {selectedSubject}</p>
+            <p style={{ ...subTitleStyle }}>勾選要複習的課文（可多選）</p>
+          </div>
         </div>
-      </div>
-      <div>
-        <h2 className="text-sm font-semibold text-slate-400 mb-2">複習模式</h2>
-        <div className="grid grid-cols-2 gap-2">
-          {QUIZ_MODES.map(m => (
-            <button key={m.value} onClick={() => setMode(m.value)}
-              className={`p-3 rounded-xl border text-left transition-all ${mode === m.value ? 'border-blue-500 bg-blue-500/10' : 'border-slate-800 bg-slate-900 hover:border-slate-700'}`}>
-              <div className="text-xl mb-1">{m.emoji}</div>
-              <div className="text-sm font-medium text-white">{m.label}</div>
-              <div className="text-xs text-slate-500 mt-0.5">{m.desc}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-      <div>
-        <h2 className="text-sm font-semibold text-slate-400 mb-2">難易度</h2>
-        <div className="flex gap-2">
-          {DIFFICULTY_LEVELS.map(d => (
-            <button key={d.value} onClick={() => setDifficulty(d.value)}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${difficulty === d.value ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
-              {d.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div>
-        <h2 className="text-sm font-semibold text-slate-400 mb-2">題數：{count} 題</h2>
-        <input type="range" min={3} max={30} value={count} onChange={e => setCount(+e.target.value)} className="w-full accent-blue-500" />
-      </div>
-      <button onClick={startQuiz} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-semibold text-base">
-        開始複習 🚀
-      </button>
-    </div>
-  )
 
-  // ── LOADING ──
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '80px' }}>
+          {filteredTextbooks.map(t => {
+            const isSelected = selectedIds.has(t.id)
+            return (
+              <button key={t.id} onClick={() => toggleSelect(t.id)}
+                style={{ ...cardStyle, padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', textAlign: 'left',
+                  background: isSelected ? `${subjectColor}15` : 'white',
+                  borderColor: isSelected ? subjectColor : '#e2e8f0',
+                  borderWidth: isSelected ? '2px' : '1px',
+                  padding: isSelected ? '11px 13px' : '12px 14px' }}>
+                <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: `2px solid ${isSelected ? subjectColor : '#cbd5e1'}`, background: isSelected ? subjectColor : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {isSelected && <Check size={14} color="white" strokeWidth={3}/>}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.lesson_number}：{t.title}</p>
+                  <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>{t.grade} · {t.semester}{t.sub_subject ? ` · ${t.sub_subject}` : ''}</p>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {selectedIds.size > 0 && (
+          <div style={{ position: 'fixed', bottom: '70px', left: 0, right: 0, padding: '12px 16px', background: 'white', borderTop: '1px solid #e2e8f0', boxShadow: '0 -4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '12px', zIndex: 10 }}>
+            <p style={{ fontSize: '13px', color: '#1e293b', margin: 0, fontWeight: 600 }}>已選 {selectedIds.size} 課</p>
+            <button onClick={() => setPhase('configure')}
+              style={{ flex: 1, padding: '10px 16px', borderRadius: '10px', background: subjectColor, color: 'white', border: 'none', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
+              下一步 →
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ============ 步驟3：設定 ============
+  if (phase === 'configure') {
+    const subjectColor = wrongOnly ? '#ef4444' : getSubjectColor(selectedSubject)
+    return (
+      <div style={containerStyle}>
+        <button onClick={() => setPhase(wrongOnly ? 'select-subject' : 'select-textbooks')} style={{ ...backBtnStyle, marginBottom: '16px' }}>
+          <ArrowLeft size={14}/> 返回
+        </button>
+
+        <div style={{ ...cardStyle, padding: '14px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '28px' }}>{wrongOnly ? '❌' : getSubjectEmoji(selectedSubject)}</span>
+          <div>
+            <p style={{ ...titleStyle }}>{wrongOnly ? `錯題重練` : `${selectedSubject} 複習`}</p>
+            <p style={{ ...subTitleStyle }}>{wrongOnly ? `${wrongAnswers.length} 題` : `已選 ${selectedTextbooks.length} 課`}</p>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <p style={{ ...subTitleStyle, fontWeight: 600, marginBottom: '8px' }}>複習模式</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            {QUIZ_MODES.map(m => (
+              <button key={m.value} onClick={() => setMode(m.value)}
+                style={{ ...cardStyle, padding: '12px', cursor: 'pointer', textAlign: 'left',
+                  borderColor: mode === m.value ? subjectColor : '#e2e8f0',
+                  borderWidth: mode === m.value ? '2px' : '1px',
+                  padding: mode === m.value ? '11px' : '12px',
+                  background: mode === m.value ? `${subjectColor}10` : 'white' }}>
+                <div style={{ fontSize: '20px', marginBottom: '4px' }}>{m.emoji}</div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{m.label}</div>
+                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>{m.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <p style={{ ...subTitleStyle, fontWeight: 600, marginBottom: '8px' }}>難易度</p>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {DIFFICULTY_LEVELS.map(d => (
+              <button key={d.value} onClick={() => setDifficulty(d.value)}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                  border: '1px solid',
+                  borderColor: difficulty === d.value ? subjectColor : '#e2e8f0',
+                  background: difficulty === d.value ? subjectColor : 'white',
+                  color: difficulty === d.value ? 'white' : '#64748b' }}>
+                {d.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '20px' }}>
+          <p style={{ ...subTitleStyle, fontWeight: 600, marginBottom: '8px' }}>題數：<span style={{ color: subjectColor, fontWeight: 700 }}>{count}</span> 題</p>
+          <input type="range" min={3} max={30} value={count} onChange={e => setCount(+e.target.value)}
+            style={{ width: '100%', accentColor: subjectColor }}/>
+        </div>
+
+        <button onClick={startQuiz}
+          style={{ width: '100%', padding: '14px', borderRadius: '10px', background: subjectColor, color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}>
+          開始複習 🚀
+        </button>
+      </div>
+    )
+  }
+
+  // ============ Loading ============
   if (phase === 'loading') return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400">
-      <Loader2 size={40} className="animate-spin text-blue-400" />
-      <p className="text-sm">AI 正在生成題目…</p>
+    <div style={{ ...containerStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+      <Loader2 size={36} color="#2563eb" style={{ animation: 'spin 1s linear infinite' }}/>
+      <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>AI 正在生成題目…</p>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 
-  // ── RESULT: SUMMARY ──
+  // ============ Result: SUMMARY ============
   if (phase === 'result' && mode === 'summary') return (
-    <div className="p-4 space-y-3 animate-in">
-      <div className="flex items-center justify-between">
-        <h1 className="font-bold text-white">📋 重點整理</h1>
-        <button onClick={reset} className="btn-ghost"><RotateCcw size={14}/> 重新</button>
+    <div style={containerStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <p style={{ ...titleStyle }}>📋 重點整理</p>
+        <button onClick={reset} style={backBtnStyle}><RotateCcw size={14}/> 重新</button>
       </div>
       {(result?.items ?? []).map((item: any, i: number) => (
-        <div key={i} className="card p-4">
-          <div className="flex items-start gap-2">
-            <span className={`mt-0.5 w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${item.importance === 'high' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>{i+1}</span>
-            <div>
-              <p className="font-semibold text-white text-sm mb-1">{item.point}</p>
-              <p className="text-slate-400 text-sm leading-relaxed">{item.detail}</p>
+        <div key={i} style={{ ...cardStyle, padding: '14px', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+            <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: item.importance === 'high' ? '#fee2e2' : '#dbeafe', color: item.importance === 'high' ? '#dc2626' : '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, flexShrink: 0, marginTop: '2px' }}>{i+1}</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b', margin: '0 0 4px' }}>{item.point}</p>
+              <p style={{ fontSize: '13px', color: '#475569', margin: 0, lineHeight: 1.6 }}>{item.detail}</p>
             </div>
           </div>
         </div>
@@ -236,67 +361,72 @@ export default function ReviewPage() {
     </div>
   )
 
-  // ── RESULT: FILL ──
+  // ============ Result: FILL ============
   if (phase === 'result' && mode === 'fill') return (
-    <div className="p-4 space-y-3 animate-in">
-      <div className="flex items-center justify-between">
-        <h1 className="font-bold text-white">✏️ 填空複習</h1>
-        <div className="flex items-center gap-2">
-          {checked && <span className={`text-sm font-bold ${score >= 80 ? 'text-emerald-400' : score >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>{score}分</span>}
-          <button onClick={reset} className="btn-ghost"><RotateCcw size={14}/></button>
+    <div style={containerStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <p style={{ ...titleStyle }}>✏️ 填空複習</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {checked && <span style={{ fontSize: '15px', fontWeight: 700, color: score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444' }}>{score}分</span>}
+          <button onClick={reset} style={backBtnStyle}><RotateCcw size={14}/></button>
         </div>
       </div>
       {(result?.questions ?? []).map((q: any, i: number) => {
-        const isCorrect = checked && (answers[i] ?? '').trim() === q.blanks?.[0]
-        const isWrong = checked && (answers[i] ?? '').trim() !== q.blanks?.[0]
+        const userAns = (answers[i] ?? '').trim()
+        const isCorrect = checked && userAns === q.blanks?.[0]
+        const isWrong = checked && userAns !== q.blanks?.[0]
         return (
-          <div key={i} className={`card p-4 ${checked ? (isCorrect ? 'border-emerald-500/30' : 'border-red-500/30') : ''}`}>
-            <p className="text-sm text-slate-300 mb-3 leading-relaxed">{q.text.replace('___', '▢▢▢')}</p>
+          <div key={i} style={{ ...cardStyle, padding: '14px', marginBottom: '8px', borderColor: isCorrect ? '#10b981' : isWrong ? '#ef4444' : '#e2e8f0', borderWidth: checked ? '2px' : '1px', padding: checked ? '13px' : '14px' }}>
+            <p style={{ fontSize: '14px', color: '#334155', margin: '0 0 10px', lineHeight: 1.6 }}>{q.text.replace('___', '▢▢▢')}</p>
             <input disabled={checked}
-              className={`w-full bg-slate-800 border rounded-lg px-3 py-2 text-sm text-white focus:outline-none ${checked ? (isCorrect ? 'border-emerald-500' : 'border-red-500') : 'border-slate-700 focus:border-blue-500'}`}
-              placeholder="填入答案…" value={answers[i] ?? ''} onChange={e => setAnswers(a => ({ ...a, [i]: e.target.value }))} />
-            {checked && isWrong && <p className="text-xs text-emerald-400 mt-2">✓ 正確答案：{q.blanks?.[0]}</p>}
+              style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', color: '#1e293b', background: '#f8fafc', boxSizing: 'border-box' }}
+              placeholder="填入答案…" value={answers[i] ?? ''} onChange={e => setAnswers(a => ({ ...a, [i]: e.target.value }))}/>
+            {checked && isWrong && <p style={{ fontSize: '12px', color: '#10b981', marginTop: '6px', marginBottom: 0, fontWeight: 600 }}>✓ 正確答案：{q.blanks?.[0]}</p>}
           </div>
         )
       })}
       {!checked ? (
-        <button onClick={checkAnswers} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-semibold">批改答案</button>
+        <button onClick={checkAnswers} style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#2563eb', color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', marginTop: '8px' }}>批改答案</button>
       ) : (
-        <button onClick={reset} className="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl">再練一次</button>
+        <button onClick={reset} style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#64748b', color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', marginTop: '8px' }}>再練一次</button>
       )}
     </div>
   )
 
-  // ── RESULT: EXAM ──
+  // ============ Result: EXAM ============
   if (phase === 'result' && mode === 'exam') return (
-    <div className="p-4 space-y-3 animate-in">
-      <div className="flex items-center justify-between">
-        <h1 className="font-bold text-white">📝 模擬考卷</h1>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-blue-400 text-sm bg-blue-500/10 px-3 py-1 rounded-full">⏱ {formatTime(timer)}</span>
-          <button onClick={reset} className="btn-ghost"><RotateCcw size={14}/></button>
+    <div style={containerStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <p style={{ ...titleStyle }}>📝 模擬考卷</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontFamily: 'monospace', color: '#2563eb', fontSize: '13px', background: '#dbeafe', padding: '4px 10px', borderRadius: '12px', fontWeight: 600 }}>⏱ {formatTime(timer)}</span>
+          <button onClick={reset} style={backBtnStyle}><RotateCcw size={14}/></button>
         </div>
       </div>
       {checked && (
-        <div className={`card p-4 text-center border-2 ${score >= 80 ? 'border-emerald-500/40 bg-emerald-500/5' : score >= 60 ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-red-500/40 bg-red-500/5'}`}>
-          <p className={`text-4xl font-bold mb-1 ${score >= 80 ? 'text-emerald-400' : score >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>{score}分</p>
-          <p className="text-slate-400 text-sm">{score >= 80 ? '太棒了！🎉' : score >= 60 ? '繼續加油！💪' : '需要多複習喔！📚'}</p>
+        <div style={{ ...cardStyle, padding: '16px', textAlign: 'center', marginBottom: '12px', borderWidth: '2px', borderColor: score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444', background: score >= 80 ? '#f0fdf4' : score >= 60 ? '#fffbeb' : '#fef2f2' }}>
+          <p style={{ fontSize: '36px', fontWeight: 700, margin: '0 0 4px', color: score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444' }}>{score}分</p>
+          <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>{score >= 80 ? '太棒了！🎉' : score >= 60 ? '繼續加油！💪' : '需要多複習喔！📚'}</p>
         </div>
       )}
       {(result?.questions ?? []).map((q: any, i: number) => {
         const isCorrect = checked && answers[i] === q.answer
         const isWrong = checked && answers[i] !== q.answer
         return (
-          <div key={i} className={`card p-4 ${checked ? (isCorrect ? 'border-emerald-500/20' : 'border-red-500/20') : ''}`}>
-            <p className="text-sm font-medium text-white mb-3">{i+1}. {q.text}</p>
+          <div key={i} style={{ ...cardStyle, padding: '14px', marginBottom: '8px', borderColor: isCorrect ? '#10b981' : isWrong ? '#ef4444' : '#e2e8f0', borderWidth: checked ? '2px' : '1px', padding: checked ? '13px' : '14px' }}>
+            <p style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b', margin: '0 0 10px' }}>{i+1}. {q.text}</p>
             {q.type === 'choice' && q.options ? (
-              <div className="space-y-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {q.options.map((opt: string, j: number) => {
                   const letter = ['A','B','C','D'][j]
-                  const isAns = letter === q.answer; const isPicked = answers[i] === letter
+                  const isAns = letter === q.answer
+                  const isPicked = answers[i] === letter
                   return (
                     <button key={j} disabled={checked} onClick={() => setAnswers(a => ({ ...a, [i]: letter }))}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all border ${checked ? (isAns ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300' : isPicked ? 'border-red-500 bg-red-500/10 text-red-300' : 'border-slate-800 text-slate-500') : (isPicked ? 'border-blue-500 bg-blue-500/10 text-white' : 'border-slate-800 text-slate-300 hover:border-slate-600')}`}>
+                      style={{ width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', cursor: checked ? 'default' : 'pointer', border: '1px solid',
+                        borderColor: checked ? (isAns ? '#10b981' : isPicked ? '#ef4444' : '#e2e8f0') : (isPicked ? '#2563eb' : '#e2e8f0'),
+                        background: checked ? (isAns ? '#f0fdf4' : isPicked ? '#fef2f2' : 'white') : (isPicked ? '#eff6ff' : 'white'),
+                        color: checked ? (isAns ? '#10b981' : isPicked ? '#ef4444' : '#64748b') : (isPicked ? '#2563eb' : '#334155') }}>
                       {letter}. {opt}
                     </button>
                   )
@@ -304,41 +434,41 @@ export default function ReviewPage() {
               </div>
             ) : (
               <input disabled={checked}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-                placeholder="填入答案…" value={answers[i] ?? ''} onChange={e => setAnswers(a => ({ ...a, [i]: e.target.value }))} />
+                style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', color: '#1e293b', background: '#f8fafc', boxSizing: 'border-box' }}
+                placeholder="填入答案…" value={answers[i] ?? ''} onChange={e => setAnswers(a => ({ ...a, [i]: e.target.value }))}/>
             )}
-            {checked && isWrong && <p className="text-xs text-emerald-400 mt-2">✓ {q.answer} — {q.explanation}</p>}
+            {checked && isWrong && <p style={{ fontSize: '12px', color: '#10b981', marginTop: '8px', marginBottom: 0, fontWeight: 600 }}>✓ {q.answer} — {q.explanation}</p>}
           </div>
         )
       })}
       {!checked ? (
-        <button onClick={checkAnswers} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-semibold">繳交考卷</button>
+        <button onClick={checkAnswers} style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#2563eb', color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', marginTop: '8px' }}>繳交考卷</button>
       ) : (
-        <button onClick={reset} className="w-full bg-slate-700 text-white py-3 rounded-xl">重新出題</button>
+        <button onClick={reset} style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#64748b', color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', marginTop: '8px' }}>重新出題</button>
       )}
     </div>
   )
 
-  // ── RESULT: KNOWLEDGE ──
+  // ============ Result: KNOWLEDGE ============
   if (phase === 'result' && mode === 'knowledge') return (
-    <div className="p-4 space-y-3 animate-in">
-      <div className="flex items-center justify-between">
-        <h1 className="font-bold text-white">🔊 知識點攻略</h1>
-        <button onClick={reset} className="btn-ghost"><RotateCcw size={14}/></button>
+    <div style={containerStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <p style={{ ...titleStyle }}>🔊 知識點攻略</p>
+        <button onClick={reset} style={backBtnStyle}><RotateCcw size={14}/> 重新</button>
       </div>
       {(result?.units ?? []).map((unit: any, i: number) => (
-        <div key={i} className="card p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 text-xs flex items-center justify-center font-bold">{i+1}</span>
-            <h3 className="font-semibold text-white text-sm">{unit.title}</h3>
+        <div key={i} style={{ ...cardStyle, padding: '14px', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#dbeafe', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>{i+1}</span>
+            <p style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b', margin: 0 }}>{unit.title}</p>
           </div>
-          <p className="text-slate-300 text-sm leading-relaxed">{unit.explanation}</p>
-          {unit.example && <div className="bg-slate-800/60 rounded-lg p-3 text-xs text-slate-400">💡 {unit.example}</div>}
-          <div className="border-t border-slate-800 pt-3">
-            <p className="text-xs text-slate-500 mb-2">練習題：</p>
-            <p className="text-sm text-slate-300">{unit.question}</p>
-            <details className="mt-2"><summary className="text-xs text-blue-400 cursor-pointer">查看答案</summary>
-              <p className="text-sm text-emerald-400 mt-1">{unit.answer}</p>
+          <p style={{ fontSize: '13px', color: '#334155', margin: '0 0 8px', lineHeight: 1.6 }}>{unit.explanation}</p>
+          {unit.example && <div style={{ background: '#f1f5f9', borderRadius: '8px', padding: '8px 10px', fontSize: '12px', color: '#475569', marginBottom: '8px' }}>💡 {unit.example}</div>}
+          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '8px' }}>
+            <p style={{ fontSize: '11px', color: '#64748b', margin: '0 0 4px' }}>練習題：</p>
+            <p style={{ fontSize: '13px', color: '#334155', margin: '0 0 6px' }}>{unit.question}</p>
+            <details><summary style={{ fontSize: '12px', color: '#2563eb', cursor: 'pointer', fontWeight: 600 }}>查看答案</summary>
+              <p style={{ fontSize: '13px', color: '#10b981', margin: '4px 0 0', fontWeight: 600 }}>{unit.answer}</p>
             </details>
           </div>
         </div>
