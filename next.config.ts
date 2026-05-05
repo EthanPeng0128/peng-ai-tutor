@@ -2,13 +2,9 @@ import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
   images: {
-    domains: ["xjhicezzrxgwfxwbvilp.supabase.co"],
-  },
-  api: {
-    bodyParser: {
-      sizeLimit: "10mb",
-    },
-    responseLimit: "10mb",
+    remotePatterns: [
+      { protocol: "https", hostname: "xjhicezzrxgwfxwbvilp.supabase.co" }
+    ],
   },
 }
 
