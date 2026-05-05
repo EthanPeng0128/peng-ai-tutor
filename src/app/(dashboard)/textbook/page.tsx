@@ -66,10 +66,20 @@ export default function TextbookPage() {
       if (uploadError) throw uploadError
       const { data: { publicUrl } } = supabase.storage.from('textbook-files').getPublicUrl(storagePath)
 
-      // Step 2: AI parse - only for images (PDF too large for Vercel API)
+      // Step 2: AI parse
       let parsedContent = ''
       const isPDF = file.type === 'application/pdf' || file.name.endsWith('.pdf')
-      if (!isPDF) {
+
+      if (isPDF) {
+        // PDF: already uploaded to Supabase, send URL to server for parsing (supports 50MB)
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pdfUrl: publicUrl })
+        })
+        const data = await res.json()
+        parsedContent = data.content ?? '（PDF解析失敗，請重試）'
+      } else {
         // Image: convert to base64 and send to AI
         const reader = new FileReader()
         parsedContent = await new Promise((resolve) => {
@@ -85,25 +95,6 @@ export default function TextbookPage() {
               const data = await res.json()
               resolve(data.content ?? '')
             } catch { resolve('') }
-          }
-          reader.readAsDataURL(file)
-        })
-      } else {
-        // PDF: convert to base64 and send to Claude for parsing
-        const reader = new FileReader()
-        parsedContent = await new Promise((resolve) => {
-          reader.onload = async (e) => {
-            const dataUrl = e.target?.result as string
-            const base64 = dataUrl.split(',')[1]
-            try {
-              const res = await fetch('/api/upload', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ base64, mimeType: 'application/pdf' })
-              })
-              const data = await res.json()
-              resolve(data.content ?? '（PDF解析失敗，請重試）')
-            } catch { resolve('（PDF解析失敗）') }
           }
           reader.readAsDataURL(file)
         })
