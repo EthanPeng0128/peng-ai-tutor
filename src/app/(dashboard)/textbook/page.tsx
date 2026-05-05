@@ -89,7 +89,24 @@ export default function TextbookPage() {
           reader.readAsDataURL(file)
         })
       } else {
-        parsedContent = '（PDF課文已上傳，內容將在複習時由AI直接分析）'
+        // PDF: convert to base64 and send to Claude for parsing
+        const reader = new FileReader()
+        parsedContent = await new Promise((resolve) => {
+          reader.onload = async (e) => {
+            const dataUrl = e.target?.result as string
+            const base64 = dataUrl.split(',')[1]
+            try {
+              const res = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ base64, mimeType: 'application/pdf' })
+              })
+              const data = await res.json()
+              resolve(data.content ?? '（PDF解析失敗，請重試）')
+            } catch { resolve('（PDF解析失敗）') }
+          }
+          reader.readAsDataURL(file)
+        })
       }
 
       // Step 3: Save to database
