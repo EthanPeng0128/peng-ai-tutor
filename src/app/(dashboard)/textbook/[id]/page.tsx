@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, FileText, Star, Smartphone, Volume2, Loader2, ExternalLink } from 'lucide-react'
+import { ArrowLeft, FileText, Sparkles, Volume2, Loader2, ExternalLink, Download, Printer, RefreshCw } from 'lucide-react'
 
-type Mode = 'original' | 'highlight' | 'mobile'
+type Mode = 'original' | 'summary'
 
 export default function TextbookReaderPage() {
   const params = useParams()
@@ -13,10 +13,12 @@ export default function TextbookReaderPage() {
   const [textbook, setTextbook] = useState<any>(null)
   const [mode, setMode] = useState<Mode>('original')
   const [loading, setLoading] = useState(true)
-  const [aiContent, setAiContent] = useState('')
-  const [aiLoading, setAiLoading] = useState(false)
   const [speaking, setSpeaking] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [summaryHtml, setSummaryHtml] = useState('')
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [hasSummary, setHasSummary] = useState(false)
+  const summaryRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (params.id) loadTextbook(params.id as string)
@@ -29,28 +31,60 @@ export default function TextbookReaderPage() {
     const { data } = await supabase.from('textbooks').select('*').eq('id', id).single()
     setTextbook(data)
     setLoading(false)
+    // 同時檢查是否已有重點整理圖
+    const { data: summaries } = await supabase.from('summary_sheets').select('html_content').eq('textbook_id', id).order('created_at', { ascending: false }).limit(1)
+    if (summaries && summaries.length > 0) {
+      setSummaryHtml(summaries[0].html_content)
+      setHasSummary(true)
+    }
   }
 
-  async function loadAIContent(type: 'highlight' | 'mobile') {
-    if (!textbook?.content) return
-    setAiLoading(true)
+  async function generateSummary(regenerate = false) {
+    if (!textbook?.id) return
+    setSummaryLoading(true)
     try {
-      const res = await fetch('/api/reader', {
+      const res = await fetch('/api/summary-sheet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: textbook.content, type }),
+        body: JSON.stringify({ textbookId: textbook.id, regenerate }),
       })
       const data = await res.json()
-      setAiContent(data.result ?? '')
-    } catch {}
-    setAiLoading(false)
+      if (data.html) {
+        setSummaryHtml(data.html)
+        setHasSummary(true)
+      } else {
+        alert('生成失敗：' + (data.error || '請再試一次'))
+      }
+    } catch (e: any) {
+      alert('生成失敗：' + e.message)
+    }
+    setSummaryLoading(false)
+  }
+
+  async function downloadPNG() {
+    if (!summaryRef.current) return
+    try {
+      const html2canvas = (await import('html2canvas')).default
+      const canvas = await html2canvas(summaryRef.current, { scale: 2, backgroundColor: '#ffffff' })
+      const link = document.createElement('a')
+      link.download = `${textbook.title}_重點整理.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (e: any) {
+      alert('下載失敗：' + e.message)
+    }
+  }
+
+  function printSummary() {
+    if (!summaryHtml) return
+    const win = window.open('', '_blank')
+    if (!win) return
+    win.document.write(`<!DOCTYPE html><html><head><title>${textbook.title} 重點整理</title><style>@media print{@page{size:landscape;margin:1cm}}body{margin:0;padding:20px;font-family:sans-serif}</style></head><body>${summaryHtml}<script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body></html>`)
+    win.document.close()
   }
 
   function handleModeChange(newMode: Mode) {
     setMode(newMode)
-    if (newMode === 'highlight' || newMode === 'mobile') {
-      loadAIContent(newMode)
-    }
   }
 
   function speak() {
@@ -79,8 +113,7 @@ export default function TextbookReaderPage() {
 
   const MODES = [
     { id:'original', label: isPDF ? '📄 PDF閱讀' : '📄 原始',  Icon:FileText },
-    { id:'highlight', label:'⭐ 重點標注', Icon:Star },
-    { id:'mobile',    label:'📱 AI排版',   Icon:Smartphone },
+    { id:'summary',  label:'📊 重點整理圖', Icon:Sparkles },
   ]
 
   return (
@@ -101,7 +134,7 @@ export default function TextbookReaderPage() {
         <div style={{display:'flex',gap:'6px'}}>
           {MODES.map(m => (
             <button key={m.id} onClick={() => handleModeChange(m.id as Mode)}
-              style={{flex:1,padding:'8px 4px',borderRadius:'10px',border:'1.5px solid',borderColor:mode===m.id?'#2563eb':'#e2e8f0',background:mode===m.id?'#eff6ff':'white',color:mode===m.id?'#1d4ed8':'#64748b',fontSize:'12px',fontWeight:mode===m.id?'700':'500',cursor:'pointer',transition:'all 0.15s'}}>
+              style={{flex:1,padding:'8px 4px',borderRadius:'10px',border:'1.5px solid',borderColor:mode===m.id?'#2563eb':'#e2e8f0',background:mode===m.id?'#eff6ff':'white',color:mode===m.id?'#1d4ed8':'#64748b',fontSize:'13px',fontWeight:mode===m.id?'700':'500',cursor:'pointer',transition:'all 0.15s'}}>
               {m.label}
             </button>
           ))}
@@ -153,28 +186,51 @@ export default function TextbookReaderPage() {
           </div>
         )}
 
-        {(mode === 'highlight' || mode === 'mobile') && (
-          <div style={{flex:1,minHeight:0,overflowY:'auto',WebkitOverflowScrolling:'touch',padding:'16px'}}>
-            {aiLoading ? (
+        {mode === 'summary' && (
+          <div style={{flex:1,minHeight:0,overflowY:'auto',WebkitOverflowScrolling:'touch',padding:'16px',background:'#f1f5f9'}}>
+            {!hasSummary && !summaryLoading && (
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'48px 16px',gap:'16px',background:'white',borderRadius:'14px',border:'1px solid #e2e8f0'}}>
+                <Sparkles size={36} color="#a78bfa"/>
+                <div style={{textAlign:'center'}}>
+                  <p style={{fontSize:'16px',fontWeight:'600',color:'#1e293b',margin:'0 0 6px'}}>還沒有這課的重點整理圖</p>
+                  <p style={{fontSize:'13px',color:'#64748b',margin:0}}>AI 會幫你把這課重點濃縮成一張精美的圖</p>
+                </div>
+                <button onClick={() => generateSummary(false)}
+                  style={{padding:'12px 24px',background:'#2563eb',color:'white',border:'none',borderRadius:'10px',fontSize:'14px',fontWeight:'600',cursor:'pointer',display:'flex',alignItems:'center',gap:'8px'}}>
+                  <Sparkles size={16}/> 生成重點整理圖
+                </button>
+              </div>
+            )}
+
+            {summaryLoading && (
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'48px',gap:'12px'}}>
                 <Loader2 size={28} color="#2563eb" style={{animation:'spin 1s linear infinite'}}/>
-                <p style={{color:'#64748b',fontSize:'14px',margin:0}}>{mode==='highlight'?'AI 正在標記重點…':'AI 正在重新排版…'}</p>
+                <p style={{color:'#64748b',fontSize:'14px',margin:0}}>AI 正在為你生成精美的重點整理圖…</p>
+                <p style={{color:'#94a3b8',fontSize:'12px',margin:0}}>大約需要 10~20 秒，完成後會自動存檔</p>
                 <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
               </div>
-            ) : (
-              <div style={{background:'white',border:'1px solid #e2e8f0',borderRadius:'14px',padding:'20px',lineHeight:'1.9',color:'#334155',fontSize:'15px'}}>
-                {(aiContent || textbook.content || '').split('\n').map((line: string, i: number) => {
-                  const parts = line.split(/\*\*(.+?)\*\*/)
-                  return (
-                    <p key={i} style={{marginBottom:'8px'}}>
-                      {parts.map((part, j) =>
-                        j % 2 === 1
-                          ? <mark key={j} style={{background: mode==='highlight'?'#fef9c3':'transparent', borderBottom: mode==='highlight'?'2px solid #eab308':'none', color:'#92400e', fontWeight:'600', borderRadius:'2px', padding:'0 2px'}}>{part}</mark>
-                          : <span key={j}>{part}</span>
-                      )}
-                    </p>
-                  )
-                })}
+            )}
+
+            {hasSummary && !summaryLoading && (
+              <div>
+                {/* 工具列 */}
+                <div style={{display:'flex',gap:'8px',marginBottom:'12px',flexWrap:'wrap'}}>
+                  <button onClick={downloadPNG}
+                    style={{flex:'1 1 auto',minWidth:'100px',padding:'10px 14px',background:'white',border:'1px solid #e2e8f0',borderRadius:'10px',fontSize:'13px',fontWeight:'600',color:'#334155',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
+                    <Download size={15}/> 下載 PNG
+                  </button>
+                  <button onClick={printSummary}
+                    style={{flex:'1 1 auto',minWidth:'100px',padding:'10px 14px',background:'white',border:'1px solid #e2e8f0',borderRadius:'10px',fontSize:'13px',fontWeight:'600',color:'#334155',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
+                    <Printer size={15}/> 列印
+                  </button>
+                  <button onClick={() => generateSummary(true)}
+                    style={{flex:'1 1 auto',minWidth:'100px',padding:'10px 14px',background:'white',border:'1px solid #e2e8f0',borderRadius:'10px',fontSize:'13px',fontWeight:'600',color:'#334155',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
+                    <RefreshCw size={15}/> 重新生成
+                  </button>
+                </div>
+
+                {/* 整理圖 */}
+                <div ref={summaryRef} style={{background:'white',borderRadius:'14px',padding:'8px',boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}} dangerouslySetInnerHTML={{__html: summaryHtml}}/>
               </div>
             )}
           </div>
