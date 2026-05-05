@@ -1,3 +1,5 @@
+
+
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
@@ -24,7 +26,10 @@ export default function TextbookReaderPage() {
   useEffect(() => {
     if (params.id) loadTextbook(params.id as string)
     if (typeof window !== 'undefined') {
-      setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent))
+      const ua = navigator.userAgent
+      const isIPad = /iPad/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document)
+      const isPhone = /iPhone|iPod|Android/i.test(ua) && !isIPad
+      setIsMobile(isPhone)
     }
   }, [params.id])
 
