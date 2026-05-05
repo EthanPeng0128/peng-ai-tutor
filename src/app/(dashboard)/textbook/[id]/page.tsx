@@ -120,7 +120,7 @@ export default function TextbookReaderPage() {
       <div style={{flexShrink:0,padding:'12px 16px',background:'white',borderBottom:'1px solid #e2e8f0',boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
         <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px'}}>
           <button onClick={() => router.back()} style={{background:'none',border:'none',cursor:'pointer',color:'#64748b',display:'flex',alignItems:'center'}}>
-            <ArrowLeft size={20}/>
+            <ArrowLeft size={16}/><span>返回</span>
           </button>
           <div style={{flex:1,minWidth:0}}>
             <p style={{fontSize:'15px',fontWeight:'700',color:'#1e293b',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{textbook.title}</p>
