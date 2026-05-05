@@ -4,13 +4,13 @@ import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Home, BookOpen, PenLine, Camera, BarChart2, MessageCircle, CalendarDays } from 'lucide-react'
 
-const NAV_ITEMS = [
-  { href: '/dashboard',  label: '總覽', icon: Home },
-  { href: '/textbook',   label: '課本', icon: BookOpen },
-  { href: '/review',     label: '複習', icon: PenLine },
-  { href: '/analysis',   label: '考卷', icon: Camera },
-  { href: '/study-plan', label: '計劃', icon: CalendarDays },
-  { href: '/progress',   label: '進度', icon: BarChart2 },
+const NAV = [
+  { href:'/dashboard', label:'總覽',  Icon:Home },
+  { href:'/textbook',  label:'課本',  Icon:BookOpen },
+  { href:'/review',    label:'複習',  Icon:PenLine },
+  { href:'/analysis',  label:'考卷',  Icon:Camera },
+  { href:'/study-plan',label:'計劃',  Icon:CalendarDays },
+  { href:'/progress',  label:'進度',  Icon:BarChart2 },
 ]
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -19,33 +19,34 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [child, setChild] = useState<any>(null)
 
   useEffect(() => {
-    const stored = localStorage.getItem('selectedChild')
-    if (!stored) { router.push('/'); return }
-    setChild(JSON.parse(stored))
+    const s = localStorage.getItem('selectedChild')
+    if (!s) { router.push('/'); return }
+    setChild(JSON.parse(s))
   }, [])
 
   return (
-    <div className="flex flex-col h-screen bg-slate-950 max-w-lg mx-auto">
-      <header className="flex items-center gap-3 px-4 pt-3 pb-3 border-b border-slate-800/60 bg-slate-950/95 backdrop-blur sticky top-0 z-40">
-        <button onClick={() => router.push('/')} className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors text-slate-400">←</button>
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-white text-sm truncate">{child?.avatar} {child?.name}</div>
-          <div className="text-slate-500 text-xs">{child?.grade}</div>
+    <div style={{display:'flex',flexDirection:'column',height:'100vh',background:'#f1f5f9',maxWidth:'480px',margin:'0 auto'}}>
+      <header style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',background:'white',borderBottom:'1px solid #e2e8f0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',position:'sticky',top:0,zIndex:40}}>
+        <button onClick={() => router.push('/')} style={{width:'34px',height:'34px',borderRadius:'8px',border:'1px solid #e2e8f0',background:'#f8fafc',cursor:'pointer',color:'#64748b',fontSize:'16px',display:'flex',alignItems:'center',justifyContent:'center'}}>←</button>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:'700',color:'#0f172a',fontSize:'15px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{child?.avatar} {child?.name}</div>
+          <div style={{color:'#94a3b8',fontSize:'11px'}}>{child?.grade}</div>
         </div>
-        <Link href="/chat" className={`p-2 rounded-xl transition-colors ${pathname === '/chat' ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:bg-slate-800'}`}>
-          <MessageCircle size={20} />
+        <Link href="/chat" style={{width:'34px',height:'34px',borderRadius:'8px',border:'1px solid',borderColor:pathname==='/chat'?'#2563eb':'#e2e8f0',background:pathname==='/chat'?'#eff6ff':'#f8fafc',display:'flex',alignItems:'center',justifyContent:'center',color:pathname==='/chat'?'#2563eb':'#64748b',textDecoration:'none'}}>
+          <MessageCircle size={17}/>
         </Link>
       </header>
-      <main className="flex-1 overflow-y-auto">{children}</main>
-      <nav className="border-t border-slate-800/60 bg-slate-950/95 backdrop-blur">
-        <div className="flex">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href
+
+      <main style={{flex:1,overflowY:'auto',background:'#f8fafc'}}>{children}</main>
+
+      <nav style={{background:'white',borderTop:'1px solid #e2e8f0',boxShadow:'0 -2px 8px rgba(0,0,0,0.05)'}}>
+        <div style={{display:'flex'}}>
+          {NAV.map(({href,label,Icon}) => {
+            const active = pathname===href
             return (
-              <Link key={href} href={href} className={`flex-1 flex flex-col items-center py-2.5 gap-0.5 transition-colors relative ${active ? 'text-blue-400' : 'text-slate-500'}`}>
-                <Icon size={20} strokeWidth={active ? 2.5 : 2} />
-                <span className="text-[9px] font-medium">{label}</span>
-                {active && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-blue-400 rounded-full" />}
+              <Link key={href} href={href} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',padding:'8px 0 6px',gap:'2px',textDecoration:'none',color:active?'#2563eb':'#94a3b8',borderTop:`2px solid ${active?'#2563eb':'transparent'}`,background:active?'#eff6ff':'transparent',transition:'all 0.15s'}}>
+                <Icon size={19} strokeWidth={active?2.5:2}/>
+                <span style={{fontSize:'9px',fontWeight:active?'700':'500'}}>{label}</span>
               </Link>
             )
           })}
