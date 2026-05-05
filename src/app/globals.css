@@ -1,17 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
-  --color-chinese: #d97706;
-  --color-english: #2563eb;
-  --color-math:    #059669;
-  --color-science: #ea580c;
-  --color-social:  #7c3aed;
-}
-
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+@import "tailwindcss";
 
 body {
   background: #f8fafc;
@@ -20,36 +7,62 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 .card {
-  @apply bg-white border border-slate-200 rounded-2xl shadow-sm;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 .card-hover {
-  @apply card transition-all duration-200 hover:border-slate-300 hover:shadow-md;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: all 0.2s;
+}
+.card-hover:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
 .btn-primary {
-  @apply px-4 py-2 rounded-xl font-medium text-sm transition-all duration-150 active:scale-95;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.15s;
 }
+.btn-primary:active { transform: scale(0.95); }
+
 .btn-ghost {
-  @apply px-3 py-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all duration-150 text-sm;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  color: #64748b;
+  font-size: 0.875rem;
+  transition: all 0.15s;
 }
+.btn-ghost:hover { color: #1e293b; background: #f1f5f9; }
 
-.prose-tutor h1, .prose-tutor h2, .prose-tutor h3 { @apply font-bold text-slate-800 mb-2; }
-.prose-tutor h1 { @apply text-xl; }
-.prose-tutor h2 { @apply text-lg; }
-.prose-tutor h3 { @apply text-base; }
-.prose-tutor p  { @apply text-slate-600 leading-relaxed mb-3; }
-.prose-tutor ul { @apply list-disc list-inside text-slate-600 mb-3 space-y-1; }
-.prose-tutor ol { @apply list-decimal list-inside text-slate-600 mb-3 space-y-1; }
-.prose-tutor strong { @apply text-amber-600 font-semibold; }
-.prose-tutor code { @apply bg-slate-100 text-emerald-700 px-1.5 py-0.5 rounded text-sm; }
+.prose-tutor h1, .prose-tutor h2, .prose-tutor h3 { font-weight: 700; color: #1e293b; margin-bottom: 0.5rem; }
+.prose-tutor h1 { font-size: 1.25rem; }
+.prose-tutor h2 { font-size: 1.125rem; }
+.prose-tutor h3 { font-size: 1rem; }
+.prose-tutor p  { color: #475569; line-height: 1.75; margin-bottom: 0.75rem; }
+.prose-tutor ul { list-style: disc inside; color: #475569; margin-bottom: 0.75rem; }
+.prose-tutor ol { list-style: decimal inside; color: #475569; margin-bottom: 0.75rem; }
+.prose-tutor strong { color: #d97706; font-weight: 600; }
+.prose-tutor code { background: #f1f5f9; color: #059669; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.875rem; }
 
-.skeleton { @apply bg-slate-200 rounded animate-pulse; }
+.skeleton { background: #e2e8f0; border-radius: 0.5rem; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 
 .highlight-yellow { background: #fef9c3; border-bottom: 2px solid #eab308; }
 .highlight-red    { background: #fee2e2; border-bottom: 2px solid #ef4444; }
@@ -59,3 +72,5 @@ body {
   from { transform: translateY(10px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
 }
+
+.bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
