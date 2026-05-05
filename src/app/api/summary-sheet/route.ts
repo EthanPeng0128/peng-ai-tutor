@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       .single()
 
     if (tbError || !textbook) {
-      return NextResponse.json({ error: '找不到課文' }, { status: 404 })
+      return NextResponse.json({ error: "找不到課文", debug: { textbookId, hasTextbook: !!textbook, errorMsg: tbError?.message, errorCode: tbError?.code } }, { status: 404 })
     }
 
     const colors = SUBJECT_COLORS[textbook.subject_name] || SUBJECT_COLORS['社會']
