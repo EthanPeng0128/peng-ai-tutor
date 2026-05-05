@@ -57,27 +57,54 @@ export default function TextbookPage() {
     if (!file || !uploadPath.title) { alert('請先填寫課程標題'); return }
     setUploading(true)
     try {
+      // Step 1: Upload directly to Supabase Storage (no Vercel size limit, up to 50MB)
       const ext = file.name.split('.').pop()
-      const path = `${childId}/${Date.now()}.${ext}`
-      await supabase.storage.from('textbook-files').upload(path, file)
-      const { data: { publicUrl } } = supabase.storage.from('textbook-files').getPublicUrl(path)
+      const storagePath = `${childId}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage.from('textbook-files').upload(storagePath, file, {
+        cacheControl: '3600', upsert: false
+      })
+      if (uploadError) throw uploadError
+      const { data: { publicUrl } } = supabase.storage.from('textbook-files').getPublicUrl(storagePath)
 
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch('/api/upload', { method: 'POST', body: formData })
-      const { content } = await res.json()
+      // Step 2: AI parse - only for images (PDF too large for Vercel API)
+      let parsedContent = ''
+      const isPDF = file.type === 'application/pdf' || file.name.endsWith('.pdf')
+      if (!isPDF) {
+        // Image: convert to base64 and send to AI
+        const reader = new FileReader()
+        parsedContent = await new Promise((resolve) => {
+          reader.onload = async (e) => {
+            const dataUrl = e.target?.result as string
+            const base64 = dataUrl.split(',')[1]
+            try {
+              const res = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ base64, mimeType: file.type || 'image/jpeg' })
+              })
+              const data = await res.json()
+              resolve(data.content ?? '')
+            } catch { resolve('') }
+          }
+          reader.readAsDataURL(file)
+        })
+      } else {
+        parsedContent = '（PDF課文已上傳，內容將在複習時由AI直接分析）'
+      }
 
+      // Step 3: Save to database
       const subject = subjects.find(s => s.name === uploadPath.subjectName)
       await supabase.from('textbooks').insert({
         child_id: childId, subject_id: subject?.id,
         subject_name: uploadPath.subjectName, grade: uploadPath.grade,
         semester: uploadPath.semester, sub_subject: uploadPath.subSubject || null,
         lesson_number: uploadPath.lessonNumber, title: uploadPath.title,
-        section: uploadPath.section || null, content, original_url: publicUrl, status: 'ready',
+        section: uploadPath.section || null, content: parsedContent,
+        original_url: publicUrl, status: 'ready',
       })
       setShowUpload(false)
       loadData(childId)
-    } catch (e) { alert('上傳失敗，請再試一次') }
+    } catch (e: any) { console.error(e); alert('上傳失敗：' + (e.message || '請再試一次')) }
     setUploading(false)
   }
 
