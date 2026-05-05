@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       const base64 = Buffer.from(pdfBuffer).toString("base64")
 
       const response = await anthropic.messages.create({
-        model: "claude-opus-4-5",
+        model: "claude-opus-4-5-20251101",
         max_tokens: 8192,
         messages: [{
           role: "user",
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     // Image mode: base64 direct
     if (body.base64) {
       const response = await anthropic.messages.create({
-        model: "claude-opus-4-5",
+        model: "claude-opus-4-5-20251101",
         max_tokens: 8192,
         messages: [{
           role: "user",

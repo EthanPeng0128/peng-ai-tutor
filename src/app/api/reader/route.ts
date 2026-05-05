@@ -30,7 +30,7 @@ ${content.slice(0, 6000)}`,
     }
 
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-5',
+      model: 'claude-opus-4-5-20251101',
       max_tokens: 4096,
       messages: [{ role: 'user', content: prompts[type as keyof typeof prompts] }],
     })
