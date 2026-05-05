@@ -31,7 +31,6 @@ export default function TextbookReaderPage() {
     const { data } = await supabase.from('textbooks').select('*').eq('id', id).single()
     setTextbook(data)
     setLoading(false)
-    // 同時檢查是否已有重點整理圖
     const { data: summaries } = await supabase.from('summary_sheets').select('html_content').eq('textbook_id', id).order('created_at', { ascending: false }).limit(1)
     if (summaries && summaries.length > 0) {
       setSummaryHtml(summaries[0].html_content)
@@ -56,8 +55,7 @@ export default function TextbookReaderPage() {
         alert('生成失敗：\n' + JSON.stringify(data, null, 2))
       }
     } catch (e: any) {
-      alert('生成失敗：
-' + JSON.stringify(data, null, 2))
+      alert('連線失敗：' + e.message)
     }
     setSummaryLoading(false)
   }
@@ -80,7 +78,7 @@ export default function TextbookReaderPage() {
     if (!summaryHtml) return
     const win = window.open('', '_blank')
     if (!win) return
-    win.document.write(`<!DOCTYPE html><html><head><title>${textbook.title} 重點整理</title><style>@media print{@page{size:landscape;margin:1cm}}body{margin:0;padding:20px;font-family:sans-serif}</style></head><body>${summaryHtml}<script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body></html>`)
+    win.document.write('<!DOCTYPE html><html><head><title>' + textbook.title + ' 重點整理</title><style>@media print{@page{size:landscape;margin:1cm}}body{margin:0;padding:20px;font-family:sans-serif}</style></head><body>' + summaryHtml + '<script>window.onload=function(){setTimeout(function(){window.print()},300)}</script></body></html>')
     win.document.close()
   }
 
@@ -214,7 +212,6 @@ export default function TextbookReaderPage() {
 
             {hasSummary && !summaryLoading && (
               <div>
-                {/* 工具列 */}
                 <div style={{display:'flex',gap:'8px',marginBottom:'12px',flexWrap:'wrap'}}>
                   <button onClick={downloadPNG}
                     style={{flex:'1 1 auto',minWidth:'100px',padding:'10px 14px',background:'white',border:'1px solid #e2e8f0',borderRadius:'10px',fontSize:'13px',fontWeight:'600',color:'#334155',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
@@ -229,8 +226,6 @@ export default function TextbookReaderPage() {
                     <RefreshCw size={15}/> 重新生成
                   </button>
                 </div>
-
-                {/* 整理圖 */}
                 <div ref={summaryRef} style={{background:'white',borderRadius:'14px',padding:'8px',boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}} dangerouslySetInnerHTML={{__html: summaryHtml}}/>
               </div>
             )}
