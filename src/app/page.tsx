@@ -25,16 +25,15 @@ export default function HomePage() {
 
   async function addChild() {
     if (!newName.trim()) return
-    const { data } = await supabase.from('children').insert({ name: newName.trim(), grade: newGrade, avatar: newEmoji, color: '#4f7ef5' }).select().single()
+    const { data } = await supabase.from('children').insert({ name: newName.trim(), grade: newGrade, avatar: newEmoji, color: '#2563eb' }).select().single()
     if (data) {
-      const subs = [
-        { child_id: data.id, name: '國語', emoji: '📖', color: '#f0b429', sort_order: 0 },
-        { child_id: data.id, name: '英文', emoji: '🔤', color: '#4f7ef5', sort_order: 1 },
-        { child_id: data.id, name: '數學', emoji: '📐', color: '#34d399', sort_order: 2 },
-        { child_id: data.id, name: '理化', emoji: '🔬', color: '#fb923c', sort_order: 3 },
-        { child_id: data.id, name: '社會', emoji: '🌏', color: '#a78bfa', sort_order: 4 },
-      ]
-      await supabase.from('subjects').insert(subs)
+      await supabase.from('subjects').insert([
+        { child_id: data.id, name: '國語', emoji: '📖', color: '#d97706', sort_order: 0 },
+        { child_id: data.id, name: '英文', emoji: '🔤', color: '#2563eb', sort_order: 1 },
+        { child_id: data.id, name: '數學', emoji: '📐', color: '#059669', sort_order: 2 },
+        { child_id: data.id, name: '理化', emoji: '🔬', color: '#ea580c', sort_order: 3 },
+        { child_id: data.id, name: '社會', emoji: '🌏', color: '#7c3aed', sort_order: 4 },
+      ])
       await supabase.from('study_streaks').insert({ child_id: data.id })
       setNewName(''); setShowAdd(false); loadChildren()
     }
@@ -47,64 +46,70 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex flex-col items-center justify-center p-6">
-      <div className="text-center mb-12">
-        <div className="text-5xl mb-4">🏠</div>
-        <h1 className="text-3xl font-bold text-slate-800 mb-1">彭家 AI 家教</h1>
-        <p className="text-slate-500 text-sm">Peng Family AI Tutor Platform</p>
+    <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#eff6ff 0%,#f8fafc 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'24px'}}>
+      <div style={{textAlign:'center',marginBottom:'48px'}}>
+        <div style={{fontSize:'56px',marginBottom:'12px'}}>🏠</div>
+        <h1 style={{fontSize:'28px',fontWeight:'800',color:'#1e293b',margin:'0 0 4px'}}>彭家 AI 家教</h1>
+        <p style={{color:'#64748b',fontSize:'14px',margin:0}}>Peng Family AI Tutor Platform</p>
       </div>
-      <div className="w-full max-w-md space-y-3">
-        {loading && <div className="space-y-3">{[1,2].map(i=><div key={i} className="h-24 bg-slate-800 rounded-2xl animate-pulse"/>)}</div>}
-        {children.map((child, i) => (
-          <button key={child.id} onClick={() => selectChild(child)}
-            className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center gap-4 text-left hover:border-slate-700 hover:bg-slate-800/80 transition-all group">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl bg-slate-800 group-hover:scale-105 transition-transform">{child.avatar || '📚'}</div>
-            <div className="flex-1">
-              <div className="font-semibold text-white text-lg">{child.name}</div>
-              <div className="text-slate-400 text-sm mt-0.5">{child.grade}</div>
+
+      <div style={{width:'100%',maxWidth:'400px',display:'flex',flexDirection:'column',gap:'12px'}}>
+        {loading && [1,2].map(i => <div key={i} style={{height:'88px',background:'#e2e8f0',borderRadius:'16px',animation:'pulse 2s infinite'}}/>)}
+
+        {children.map(child => (
+          <button key={child.id} onClick={() => selectChild(child)} style={{width:'100%',background:'white',border:'2px solid #e2e8f0',borderRadius:'16px',padding:'20px',display:'flex',alignItems:'center',gap:'16px',cursor:'pointer',transition:'all 0.2s',textAlign:'left'}}
+            onMouseEnter={e=>{(e.currentTarget as any).style.borderColor='#93c5fd';(e.currentTarget as any).style.boxShadow='0 4px 16px rgba(37,99,235,0.1)'}}
+            onMouseLeave={e=>{(e.currentTarget as any).style.borderColor='#e2e8f0';(e.currentTarget as any).style.boxShadow='none'}}>
+            <div style={{width:'56px',height:'56px',borderRadius:'14px',background:'#eff6ff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'28px',flexShrink:0}}>
+              {child.avatar || '📚'}
             </div>
-            <BookOpen size={20} className="text-slate-600 group-hover:text-slate-400 transition-colors"/>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:'700',color:'#1e293b',fontSize:'17px'}}>{child.name}</div>
+              <div style={{color:'#64748b',fontSize:'13px',marginTop:'2px'}}>{child.grade}</div>
+            </div>
+            <BookOpen size={20} color="#94a3b8"/>
           </button>
         ))}
+
         {!showAdd ? (
-          <button onClick={() => setShowAdd(true)}
-            className="w-full border-2 border-dashed border-slate-700 rounded-2xl p-5 flex items-center justify-center gap-2 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-all">
-            <Plus size={18}/><span className="text-sm font-medium">新增孩子</span>
+          <button onClick={() => setShowAdd(true)} style={{width:'100%',border:'2px dashed #cbd5e1',borderRadius:'16px',padding:'20px',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',color:'#64748b',cursor:'pointer',background:'transparent',fontSize:'14px',fontWeight:'500',transition:'all 0.2s'}}
+            onMouseEnter={e=>{(e.currentTarget as any).style.borderColor='#93c5fd';(e.currentTarget as any).style.color='#2563eb'}}
+            onMouseLeave={e=>{(e.currentTarget as any).style.borderColor='#cbd5e1';(e.currentTarget as any).style.color='#64748b'}}>
+            <Plus size={18}/> 新增孩子
           </button>
         ) : (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-white">新增孩子</h3>
-              <button onClick={() => setShowAdd(false)}><X size={18} className="text-slate-400"/></button>
+          <div style={{background:'white',border:'2px solid #e2e8f0',borderRadius:'16px',padding:'20px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
+              <h3 style={{margin:0,fontSize:'16px',fontWeight:'700',color:'#1e293b'}}>新增孩子</h3>
+              <button onClick={() => setShowAdd(false)} style={{background:'none',border:'none',cursor:'pointer',color:'#94a3b8'}}><X size={18}/></button>
             </div>
-            <div className="space-y-3">
-              <input className="w-full bg-slate-800 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 border border-slate-700 focus:border-blue-500 focus:outline-none text-sm"
-                placeholder="孩子姓名" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key==='Enter'&&addChild()} autoFocus/>
-              <select className="w-full bg-slate-800 rounded-xl px-4 py-2.5 text-white border border-slate-700 focus:outline-none text-sm"
+            <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
+              <input style={{width:'100%',background:'#f8fafc',border:'1.5px solid #e2e8f0',borderRadius:'10px',padding:'10px 14px',fontSize:'14px',color:'#1e293b',outline:'none',boxSizing:'border-box'}}
+                placeholder="孩子姓名" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key==='Enter'&&addChild()} autoFocus
+                onFocus={e=>(e.target as any).style.borderColor='#93c5fd'} onBlur={e=>(e.target as any).style.borderColor='#e2e8f0'}/>
+              <select style={{width:'100%',background:'#f8fafc',border:'1.5px solid #e2e8f0',borderRadius:'10px',padding:'10px 14px',fontSize:'14px',color:'#1e293b',outline:'none'}}
                 value={newGrade} onChange={e => setNewGrade(e.target.value)}>
                 {GRADES.map(g=><option key={g}>{g}</option>)}
               </select>
               <div>
-                <p className="text-slate-400 text-xs mb-2">選擇頭像</p>
-                <div className="flex gap-2 flex-wrap">
+                <p style={{color:'#64748b',fontSize:'12px',marginBottom:'8px',margin:'0 0 8px'}}>選擇頭像</p>
+                <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
                   {EMOJIS.map(e=>(
-                    <button key={e} onClick={() => setNewEmoji(e)}
-                      className={"w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all "+(newEmoji===e?'bg-blue-500/30 ring-2 ring-blue-500':'bg-slate-800 hover:bg-slate-700')}>
+                    <button key={e} onClick={() => setNewEmoji(e)} style={{width:'40px',height:'40px',borderRadius:'10px',fontSize:'20px',border:'2px solid',borderColor:newEmoji===e?'#2563eb':'#e2e8f0',background:newEmoji===e?'#eff6ff':'#f8fafc',cursor:'pointer',transition:'all 0.15s'}}>
                       {e}
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="flex gap-2 pt-1">
-                <button onClick={() => setShowAdd(false)} className="flex-1 px-4 py-2 rounded-xl text-slate-400 hover:text-white border border-slate-700 hover:bg-slate-800 transition-all text-sm">取消</button>
-                <button onClick={addChild} disabled={!newName.trim()}
-                  className="flex-1 px-4 py-2 rounded-xl font-medium text-sm bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-40 transition-all">新增</button>
+              <div style={{display:'flex',gap:'8px',marginTop:'4px'}}>
+                <button onClick={() => setShowAdd(false)} style={{flex:1,padding:'10px',borderRadius:'10px',border:'1.5px solid #e2e8f0',background:'white',color:'#64748b',fontSize:'14px',cursor:'pointer',fontWeight:'500'}}>取消</button>
+                <button onClick={addChild} disabled={!newName.trim()} style={{flex:1,padding:'10px',borderRadius:'10px',border:'none',background:newName.trim()?'#2563eb':'#cbd5e1',color:'white',fontSize:'14px',cursor:newName.trim()?'pointer':'not-allowed',fontWeight:'600',transition:'all 0.15s'}}>新增</button>
               </div>
             </div>
           </div>
         )}
       </div>
-      <p className="text-slate-600 text-xs mt-12">目標：考上第一志願 🎯</p>
+      <p style={{color:'#94a3b8',fontSize:'12px',marginTop:'48px'}}>目標：考上第一志願 🎯</p>
     </div>
   )
 }
