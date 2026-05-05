@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, FileText, Sparkles, Volume2, Loader2, ExternalLink, Download, Printer, RefreshCw } from 'lucide-react'
+import { ArrowLeft, FileText, Sparkles, Volume2, Loader2, ExternalLink, Download, Printer, RefreshCw, Maximize2, X } from 'lucide-react'
 
 type Mode = 'original' | 'summary'
 
@@ -18,6 +18,7 @@ export default function TextbookReaderPage() {
   const [summaryHtml, setSummaryHtml] = useState('')
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [hasSummary, setHasSummary] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
   const summaryRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -116,10 +117,11 @@ export default function TextbookReaderPage() {
   ]
 
   return (
+    <>
     <div style={{display:'flex',flexDirection:'column',height:'100dvh',background:'#f8fafc',overflow:'hidden'}}>
       <div style={{flexShrink:0,padding:'12px 16px',background:'white',borderBottom:'1px solid #e2e8f0',boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
         <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px'}}>
-          <button onClick={() => router.back()} style={{background:'none',border:'none',cursor:'pointer',color:'#64748b',display:'flex',alignItems:'center'}}>
+          <button onClick={() => router.back()} style={{background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'10px',cursor:'pointer',color:'#1e293b',display:'flex',alignItems:'center',gap:'4px',padding:'6px 12px',fontSize:'13px',fontWeight:'600',flexShrink:0}}>
             <ArrowLeft size={16}/><span>返回</span>
           </button>
           <div style={{flex:1,minWidth:0}}>
@@ -204,8 +206,8 @@ export default function TextbookReaderPage() {
             {summaryLoading && (
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'48px',gap:'12px'}}>
                 <Loader2 size={28} color="#2563eb" style={{animation:'spin 1s linear infinite'}}/>
-                <p style={{color:'#64748b',fontSize:'14px',margin:0}}>AI 正在為你生成精美的重點整理圖…</p>
-                <p style={{color:'#94a3b8',fontSize:'12px',margin:0}}>大約需要 10~20 秒，完成後會自動存檔</p>
+                <p style={{color:'#64748b',fontSize:'14px',margin:0}}>AI 正在為你生成超完整重點整理圖…</p>
+                <p style={{color:'#94a3b8',fontSize:'12px',margin:0}}>大約需要 30~60 秒，完成後會自動存檔</p>
                 <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
               </div>
             )}
@@ -213,6 +215,10 @@ export default function TextbookReaderPage() {
             {hasSummary && !summaryLoading && (
               <div>
                 <div style={{display:'flex',gap:'8px',marginBottom:'12px',flexWrap:'wrap'}}>
+                  <button onClick={() => setFullscreen(true)}
+                    style={{flex:'1 1 auto',minWidth:'120px',padding:'10px 14px',background:'#2563eb',color:'white',border:'none',borderRadius:'10px',fontSize:'13px',fontWeight:'600',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
+                    <Maximize2 size={15}/> 全螢幕看
+                  </button>
                   <button onClick={downloadPNG}
                     style={{flex:'1 1 auto',minWidth:'100px',padding:'10px 14px',background:'white',border:'1px solid #e2e8f0',borderRadius:'10px',fontSize:'13px',fontWeight:'600',color:'#334155',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
                     <Download size={15}/> 下載 PNG
@@ -226,12 +232,32 @@ export default function TextbookReaderPage() {
                     <RefreshCw size={15}/> 重新生成
                   </button>
                 </div>
-                <div style={{width:"100%",overflowX:"auto",WebkitOverflowScrolling:"touch"}}><div ref={summaryRef} style={{width:"1280px",aspectRatio:"16/9",background:"white",borderRadius:"14px",padding:"8px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",transformOrigin:"top left"}} dangerouslySetInnerHTML={{__html: summaryHtml}}/></div>
+                <div style={{width:'100%',overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+                  <div ref={summaryRef} style={{width:'1240px',aspectRatio:'1240/697',background:'white',borderRadius:'14px',padding:'8px',boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}} dangerouslySetInnerHTML={{__html: summaryHtml}}/>
+                </div>
+                {isMobile && (
+                  <p style={{fontSize:'12px',color:'#64748b',textAlign:'center',marginTop:'8px'}}>
+                    💡 手機建議點「全螢幕看」橫式檢視
+                  </p>
+                )}
               </div>
             )}
           </div>
         )}
       </div>
     </div>
+
+    {fullscreen && (
+      <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'#000',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',overflow:'auto'}}>
+        <button onClick={() => setFullscreen(false)}
+          style={{position:'fixed',top:'12px',right:'12px',width:'44px',height:'44px',borderRadius:'50%',border:'none',background:'rgba(255,255,255,0.95)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',zIndex:10000,boxShadow:'0 2px 8px rgba(0,0,0,0.3)'}}>
+          <X size={22}/>
+        </button>
+        <div style={{transform:isMobile?'rotate(90deg)':'none',transformOrigin:'center center',width:isMobile?'100vh':'95vw',maxWidth:'1240px'}}>
+          <div style={{width:'100%',aspectRatio:'1240/697',background:'white',borderRadius:'8px',overflow:'hidden'}} dangerouslySetInnerHTML={{__html: summaryHtml}}/>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
