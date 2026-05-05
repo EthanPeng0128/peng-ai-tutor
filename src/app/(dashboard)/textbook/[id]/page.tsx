@@ -1,5 +1,3 @@
-
-
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
@@ -17,6 +15,7 @@ export default function TextbookReaderPage() {
   const [loading, setLoading] = useState(true)
   const [speaking, setSpeaking] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [isIPad, setIsIPad] = useState(false)
   const [summaryHtml, setSummaryHtml] = useState('')
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [hasSummary, setHasSummary] = useState(false)
@@ -27,9 +26,10 @@ export default function TextbookReaderPage() {
     if (params.id) loadTextbook(params.id as string)
     if (typeof window !== 'undefined') {
       const ua = navigator.userAgent
-      const isIPad = /iPad/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document)
-      const isPhone = /iPhone|iPod|Android/i.test(ua) && !isIPad
+      const detectedIPad = /iPad/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document)
+      const isPhone = /iPhone|iPod|Android/i.test(ua) && !detectedIPad
       setIsMobile(isPhone)
+      setIsIPad(detectedIPad)
     }
   }, [params.id])
 
@@ -88,10 +88,6 @@ export default function TextbookReaderPage() {
     win.document.close()
   }
 
-  function handleModeChange(newMode: Mode) {
-    setMode(newMode)
-  }
-
   function speak() {
     if (!textbook?.content) return
     if (speaking) { window.speechSynthesis.cancel(); setSpeaking(false); return }
@@ -139,7 +135,7 @@ export default function TextbookReaderPage() {
         </div>
         <div style={{display:'flex',gap:'6px'}}>
           {MODES.map(m => (
-            <button key={m.id} onClick={() => handleModeChange(m.id as Mode)}
+            <button key={m.id} onClick={() => setMode(m.id as Mode)}
               style={{flex:1,padding:'8px 4px',borderRadius:'10px',border:'1.5px solid',borderColor:mode===m.id?'#2563eb':'#e2e8f0',background:mode===m.id?'#eff6ff':'white',color:mode===m.id?'#1d4ed8':'#64748b',fontSize:'13px',fontWeight:mode===m.id?'700':'500',cursor:'pointer',transition:'all 0.15s'}}>
               {m.label}
             </button>
@@ -152,31 +148,51 @@ export default function TextbookReaderPage() {
           <div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',background:'#525659'}}>
             {isPDF && textbook.original_url ? (
               <>
-                {isMobile && (
-                  <div style={{flexShrink:0,padding:'8px 12px',background:'#1e293b',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'8px'}}>
-                    <span style={{fontSize:'12px',color:'#cbd5e1'}}>📱 手機建議用瀏覽器開啟</span>
+                {isIPad ? (
+                  // iPad：直接顯示「在新分頁開啟」大按鈕（iframe PDF 在 iPad 滑不動）
+                  <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'32px',background:'#f8fafc',gap:'16px'}}>
+                    <div style={{width:'80px',height:'80px',borderRadius:'20px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      <FileText size={40} color="#2563eb"/>
+                    </div>
+                    <div style={{textAlign:'center'}}>
+                      <p style={{fontSize:'16px',fontWeight:'700',color:'#1e293b',margin:'0 0 4px'}}>{textbook.title}</p>
+                      <p style={{fontSize:'13px',color:'#64748b',margin:'0 0 16px'}}>iPad 建議用全螢幕閱讀 PDF 體驗最佳</p>
+                    </div>
                     <a href={textbook.original_url} target="_blank" rel="noopener noreferrer"
-                      style={{display:'flex',alignItems:'center',gap:'4px',padding:'6px 10px',background:'#2563eb',color:'white',borderRadius:'8px',fontSize:'12px',fontWeight:'600',textDecoration:'none'}}>
-                      <ExternalLink size={14}/> 開啟
+                      style={{display:'flex',alignItems:'center',gap:'8px',padding:'14px 28px',background:'#2563eb',color:'white',borderRadius:'12px',fontSize:'15px',fontWeight:'700',textDecoration:'none',boxShadow:'0 4px 12px rgba(37,99,235,0.3)'}}>
+                      <ExternalLink size={18}/> 在新分頁開啟 PDF
                     </a>
+                    <p style={{fontSize:'12px',color:'#94a3b8',marginTop:'8px',textAlign:'center'}}>
+                      或下方使用「📊 重點整理圖」直接看 AI 整理好的重點
+                    </p>
                   </div>
-                )}
-                <div style={{flex:1,minHeight:0,overflow:'auto',WebkitOverflowScrolling:'touch'}}>
-                  {isMobile ? (
-                    <iframe
-                      src={`https://docs.google.com/viewer?url=${encodeURIComponent(textbook.original_url)}&embedded=true`}
-                      style={{width:'100%',height:'100%',minHeight:'100%',border:'none',display:'block'}}
-                      title="PDF閱讀器"
-                      allow="fullscreen"
-                    />
-                  ) : (
+                ) : isMobile ? (
+                  <>
+                    <div style={{flexShrink:0,padding:'8px 12px',background:'#1e293b',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'8px'}}>
+                      <span style={{fontSize:'12px',color:'#cbd5e1'}}>📱 手機建議用瀏覽器開啟</span>
+                      <a href={textbook.original_url} target="_blank" rel="noopener noreferrer"
+                        style={{display:'flex',alignItems:'center',gap:'4px',padding:'6px 10px',background:'#2563eb',color:'white',borderRadius:'8px',fontSize:'12px',fontWeight:'600',textDecoration:'none'}}>
+                        <ExternalLink size={14}/> 開啟
+                      </a>
+                    </div>
+                    <div style={{flex:1,minHeight:0,overflow:'auto',WebkitOverflowScrolling:'touch'}}>
+                      <iframe
+                        src={`https://docs.google.com/viewer?url=${encodeURIComponent(textbook.original_url)}&embedded=true`}
+                        style={{width:'100%',height:'100%',minHeight:'100%',border:'none',display:'block'}}
+                        title="PDF閱讀器"
+                        allow="fullscreen"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div style={{flex:1,minHeight:0,overflow:'auto',WebkitOverflowScrolling:'touch'}}>
                     <iframe
                       src={`${textbook.original_url}#toolbar=1&navpanes=1&scrollbar=1`}
                       style={{width:'100%',height:'100%',border:'none',display:'block'}}
                       title="PDF閱讀器"
                     />
-                  )}
-                </div>
+                  </div>
+                )}
               </>
             ) : textbook.original_url && !isPDF ? (
               <div style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch',padding:'16px',background:'#f8fafc'}}>
