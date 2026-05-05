@@ -53,7 +53,7 @@ export default function TextbookReaderPage() {
         setSummaryHtml(data.html)
         setHasSummary(true)
       } else {
-        alert('生成失敗：' + (data.error || '請再試一次'))
+        alert('生成失敗：\n' + JSON.stringify(data, null, 2))
       }
     } catch (e: any) {
       alert('生成失敗：' + e.message)
