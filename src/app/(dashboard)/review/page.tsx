@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { QUIZ_MODES, DIFFICULTY_LEVELS, getSubjectEmoji, getSubjectColor } from '@/lib/constants'
-import { ChevronRight, Loader2, RotateCcw, AlertCircle, ArrowLeft, Check, Sparkles } from 'lucide-react'
+import { ChevronRight, Loader2, RotateCcw, AlertCircle, ArrowLeft, Check, Sparkles, Save, ChevronDown } from 'lucide-react'
 
 type Phase = 'select-subject' | 'select-textbooks' | 'configure' | 'loading' | 'result'
 
@@ -26,6 +26,10 @@ export default function ReviewPage() {
   const [tab, setTab] = useState<'textbook'|'wrong'>('textbook')
   const [multiLoading, setMultiLoading] = useState(false)
   const [multiSummaryHtml, setMultiSummaryHtml] = useState('')
+  const [wrongSavedMsg, setWrongSavedMsg] = useState('')
+  const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set())
+  const [expandedTextbooks, setExpandedTextbooks] = useState<Set<string>>(new Set())
+  const [savedSession, setSavedSession] = useState(false)
 
   useEffect(() => {
     const id = localStorage.getItem('selectedChildId') ?? ''
@@ -52,8 +56,40 @@ export default function ReviewPage() {
   const filteredTextbooks = textbooks.filter(t => t.subject_name === selectedSubject)
   const selectedTextbooks = textbooks.filter(t => selectedIds.has(t.id))
 
+  // 把錯題按科目+章節分類
+  const wrongBySubject: Record<string, Record<string, any[]>> = {}
+  wrongAnswers.forEach(w => {
+    const subj = w.subject_name ?? '其他'
+    const tbId = w.textbook_id ?? 'unknown'
+    if (!wrongBySubject[subj]) wrongBySubject[subj] = {}
+    if (!wrongBySubject[subj][tbId]) wrongBySubject[subj][tbId] = []
+    wrongBySubject[subj][tbId].push(w)
+  })
+
+  function getTextbookInfo(id: string) {
+    return textbooks.find(t => t.id === id)
+  }
+
   function toggleSelect(id: string) {
     setSelectedIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(id)) newSet.delete(id)
+      else newSet.add(id)
+      return newSet
+    })
+  }
+
+  function toggleSubjectExpand(subj: string) {
+    setExpandedSubjects(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(subj)) newSet.delete(subj)
+      else newSet.add(subj)
+      return newSet
+    })
+  }
+
+  function toggleTextbookExpand(id: string) {
+    setExpandedTextbooks(prev => {
       const newSet = new Set(prev)
       if (newSet.has(id)) newSet.delete(id)
       else newSet.add(id)
@@ -71,11 +107,8 @@ export default function ReviewPage() {
         body: JSON.stringify({ textbookIds: Array.from(selectedIds), regenerate }),
       })
       const data = await res.json()
-      if (data.html) {
-        setMultiSummaryHtml(data.html)
-      } else {
-        alert('生成失敗：\n' + JSON.stringify(data, null, 2))
-      }
+      if (data.html) setMultiSummaryHtml(data.html)
+      else alert('生成失敗：\n' + JSON.stringify(data, null, 2))
     } catch (e: any) {
       alert('連線失敗：' + e.message)
     }
@@ -84,7 +117,7 @@ export default function ReviewPage() {
 
   async function startQuiz() {
     if (selectedTextbooks.length === 0 && !wrongOnly) return
-    setPhase('loading'); setAnswers({}); setChecked(false); setTimer(0)
+    setPhase('loading'); setAnswers({}); setChecked(false); setTimer(0); setSavedSession(false)
     let content = ''
     let title = '複習'
     if (wrongOnly && wrongAnswers.length > 0) {
@@ -113,15 +146,6 @@ export default function ReviewPage() {
       const userAns = (answers[i] ?? '').trim()
       const correctAns = (mode === 'exam' ? q.answer : q.blanks?.[0]) ?? ''
       if (userAns === correctAns) correct++
-      else {
-        const refTextbook = selectedTextbooks[0]
-        supabase.from('wrong_answers').insert({
-          child_id: childId, textbook_id: refTextbook?.id,
-          subject_name: refTextbook?.subject_name,
-          question: q.text, correct_answer: correctAns,
-          student_answer: userAns,
-        })
-      }
     })
     const s = Math.round((correct / qs.length) * 100)
     setScore(s); setChecked(true); setTimerActive(false)
@@ -131,6 +155,39 @@ export default function ReviewPage() {
       subject_name: refTextbook?.subject_name, activity_type: mode, score: s,
       total_questions: qs.length, correct_count: correct, duration_mins: Math.round(timer/60),
     })
+  }
+
+  async function saveWrongAnswers() {
+    const qs = result?.questions ?? []
+    const wrongList: any[] = []
+    qs.forEach((q: any, i: number) => {
+      const userAns = (answers[i] ?? '').trim()
+      const correctAns = (mode === 'exam' ? q.answer : q.blanks?.[0]) ?? ''
+      if (userAns !== correctAns) {
+        const refTextbook = selectedTextbooks[0]
+        wrongList.push({
+          child_id: childId,
+          textbook_id: refTextbook?.id,
+          subject_name: refTextbook?.subject_name,
+          question: q.text,
+          correct_answer: correctAns,
+          student_answer: userAns,
+        })
+      }
+    })
+    if (wrongList.length === 0) {
+      setWrongSavedMsg('🎉 全對！沒有錯題需要儲存')
+      setTimeout(() => setWrongSavedMsg(''), 3000)
+      return
+    }
+    const { error } = await supabase.from('wrong_answers').insert(wrongList)
+    if (error) {
+      alert('儲存失敗：' + error.message)
+      return
+    }
+    setWrongSavedMsg(`✅ 已儲存 ${wrongList.length} 題錯題到錯題本`)
+    setSavedSession(true)
+    setTimeout(() => setWrongSavedMsg(''), 3000)
     supabase.from('wrong_answers').select('*').eq('child_id', childId).eq('mastered', false).then(({ data }) => setWrongAnswers(data ?? []))
   }
 
@@ -143,7 +200,7 @@ export default function ReviewPage() {
 
   function reset() {
     setPhase('select-subject'); setResult(null); setChecked(false)
-    setSelectedIds(new Set()); setSelectedSubject(''); setWrongOnly(false)
+    setSelectedIds(new Set()); setSelectedSubject(''); setWrongOnly(false); setSavedSession(false)
   }
 
   const containerStyle: React.CSSProperties = { padding: '16px', background: '#f8fafc', minHeight: '100%', overflowY: 'auto' }
@@ -153,7 +210,6 @@ export default function ReviewPage() {
   const backBtnStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', color: '#1e293b', fontWeight: 600, cursor: 'pointer' }
 
   if (phase === 'select-subject') return (
-    <>
     <div style={containerStyle}>
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
         <button onClick={() => setTab('textbook')}
@@ -194,6 +250,7 @@ export default function ReviewPage() {
 
       {tab === 'wrong' && (
         <>
+          <p style={{ ...subTitleStyle, marginBottom: '12px', fontWeight: 600 }}>錯題分類（按科目 / 章節）</p>
           {wrongAnswers.length === 0 ? (
             <div style={{ ...cardStyle, padding: '32px', textAlign: 'center' }}>
               <p style={{ fontSize: '36px', margin: '0 0 8px' }}>🎉</p>
@@ -203,28 +260,68 @@ export default function ReviewPage() {
             <>
               <button onClick={() => { setWrongOnly(true); setPhase('configure') }}
                 style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#ef4444', color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}>
-                <AlertCircle size={16}/> 開始錯題重練（{wrongAnswers.length} 題）
+                <AlertCircle size={16}/> 全部錯題重練（{wrongAnswers.length} 題）
               </button>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {wrongAnswers.map(w => (
-                  <div key={w.id} style={{ ...cardStyle, padding: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                      <span style={{ fontSize: '18px' }}>{getSubjectEmoji(w.subject_name ?? '')}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '13px', color: '#334155', margin: 0, lineHeight: 1.5 }}>{w.question}</p>
-                        <p style={{ fontSize: '12px', color: '#10b981', margin: '4px 0 0', fontWeight: 600 }}>✓ {w.correct_answer}</p>
-                      </div>
-                      <button onClick={() => markMastered(w.id)} style={{ fontSize: '11px', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', flexShrink: 0 }}>✓ 已熟</button>
+                {Object.keys(wrongBySubject).map(subj => {
+                  const tbs = wrongBySubject[subj]
+                  const totalCount = Object.values(tbs).reduce((sum, arr) => sum + arr.length, 0)
+                  const subjColor = getSubjectColor(subj)
+                  const isExpanded = expandedSubjects.has(subj)
+                  return (
+                    <div key={subj} style={{ ...cardStyle, overflow: 'hidden' }}>
+                      <button onClick={() => toggleSubjectExpand(subj)}
+                        style={{ width: '100%', padding: '12px 14px', background: 'white', border: 'none', borderLeft: `4px solid ${subjColor}`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '20px' }}>{getSubjectEmoji(subj)}</span>
+                        <div style={{ flex: 1, textAlign: 'left' }}>
+                          <p style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b', margin: 0 }}>{subj}</p>
+                          <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0' }}>{totalCount} 題錯題 · {Object.keys(tbs).length} 個章節</p>
+                        </div>
+                        <ChevronDown size={18} color="#64748b" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}/>
+                      </button>
+
+                      {isExpanded && (
+                        <div style={{ borderTop: '1px solid #e2e8f0' }}>
+                          {Object.entries(tbs).map(([tbId, errs]) => {
+                            const tb = getTextbookInfo(tbId)
+                            const tbExpanded = expandedTextbooks.has(tbId)
+                            return (
+                              <div key={tbId}>
+                                <button onClick={() => toggleTextbookExpand(tbId)}
+                                  style={{ width: '100%', padding: '10px 14px 10px 30px', background: '#f8fafc', border: 'none', borderTop: '1px solid #e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <ChevronRight size={14} color="#64748b" style={{ transform: tbExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}/>
+                                  <div style={{ flex: 1, textAlign: 'left' }}>
+                                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#334155', margin: 0 }}>
+                                      {tb ? `${tb.lesson_number} ${tb.title}` : '未知章節'}
+                                    </p>
+                                  </div>
+                                  <span style={{ background: '#fee2e2', color: '#dc2626', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>{errs.length}題</span>
+                                </button>
+
+                                {tbExpanded && errs.map(w => (
+                                  <div key={w.id} style={{ padding: '10px 14px 10px 50px', background: 'white', borderTop: '1px solid #f1f5f9' }}>
+                                    <p style={{ fontSize: '12px', color: '#475569', margin: 0, lineHeight: 1.5 }}>{w.question}</p>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: '4px' }}>
+                                      <p style={{ fontSize: '12px', color: '#10b981', margin: 0, fontWeight: 600 }}>✓ {w.correct_answer}</p>
+                                      <button onClick={() => markMastered(w.id)} style={{ fontSize: '11px', color: '#64748b', background: '#f1f5f9', border: 'none', cursor: 'pointer', padding: '4px 10px', borderRadius: '6px', fontWeight: 600 }}>標記已熟</button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </>
           )}
         </>
       )}
     </div>
-    </>
   )
 
   if (phase === 'select-textbooks') {
@@ -281,9 +378,7 @@ export default function ReviewPage() {
       {multiSummaryHtml && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#000', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: '20px' }}>
           <button onClick={() => setMultiSummaryHtml('')}
-            style={{ position: 'fixed', top: '12px', right: '12px', width: '44px', height: '44px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.95)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', fontSize: '20px', fontWeight: 700 }}>
-            ✕
-          </button>
+            style={{ position: 'fixed', top: '12px', right: '12px', width: '44px', height: '44px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.95)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', fontSize: '20px', fontWeight: 700 }}>✕</button>
           <button onClick={() => generateMultiSummary(true)} disabled={multiLoading}
             style={{ position: 'fixed', top: '12px', left: '12px', padding: '10px 16px', borderRadius: '22px', border: 'none', background: 'rgba(255,255,255,0.95)', cursor: 'pointer', zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
             <RotateCcw size={14}/> 重新生成
@@ -398,7 +493,15 @@ export default function ReviewPage() {
       {!checked ? (
         <button onClick={checkAnswers} style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#2563eb', color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', marginTop: '8px' }}>批改答案</button>
       ) : (
-        <button onClick={reset} style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#64748b', color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', marginTop: '8px' }}>再練一次</button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+          {wrongSavedMsg && <div style={{ padding: '10px', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '8px', fontSize: '13px', color: '#166534', textAlign: 'center', fontWeight: 600 }}>{wrongSavedMsg}</div>}
+          {!savedSession && (
+            <button onClick={saveWrongAnswers} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: '#f59e0b', color: 'white', border: 'none', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <Save size={16}/> 儲存錯題到錯題本
+            </button>
+          )}
+          <button onClick={reset} style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#64748b', color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}>再練一次</button>
+        </div>
       )}
     </div>
   )
@@ -448,7 +551,15 @@ export default function ReviewPage() {
       {!checked ? (
         <button onClick={checkAnswers} style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#2563eb', color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', marginTop: '8px' }}>繳交考卷</button>
       ) : (
-        <button onClick={reset} style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#64748b', color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', marginTop: '8px' }}>重新出題</button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+          {wrongSavedMsg && <div style={{ padding: '10px', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '8px', fontSize: '13px', color: '#166534', textAlign: 'center', fontWeight: 600 }}>{wrongSavedMsg}</div>}
+          {!savedSession && (
+            <button onClick={saveWrongAnswers} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: '#f59e0b', color: 'white', border: 'none', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <Save size={16}/> 儲存錯題到錯題本
+            </button>
+          )}
+          <button onClick={reset} style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#64748b', color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}>重新出題</button>
+        </div>
       )}
     </div>
   )
