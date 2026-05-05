@@ -56,7 +56,8 @@ export default function TextbookReaderPage() {
         alert('生成失敗：\n' + JSON.stringify(data, null, 2))
       }
     } catch (e: any) {
-      alert('生成失敗：' + e.message)
+      alert('生成失敗：
+' + JSON.stringify(data, null, 2))
     }
     setSummaryLoading(false)
   }
