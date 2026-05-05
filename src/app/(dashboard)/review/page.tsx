@@ -236,7 +236,7 @@ export default function ReviewPage() {
             const isSelected = selectedIds.has(t.id)
             return (
               <button key={t.id} onClick={() => toggleSelect(t.id)}
-                style={{ ...cardStyle, padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', textAlign: 'left',
+                style={{ ...cardStyle, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', textAlign: 'left',
                   background: isSelected ? `${subjectColor}15` : 'white',
                   borderColor: isSelected ? subjectColor : '#e2e8f0',
                   borderWidth: isSelected ? '2px' : '1px',
@@ -288,7 +288,7 @@ export default function ReviewPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             {QUIZ_MODES.map(m => (
               <button key={m.value} onClick={() => setMode(m.value)}
-                style={{ ...cardStyle, padding: '12px', cursor: 'pointer', textAlign: 'left',
+                style={{ ...cardStyle, cursor: 'pointer', textAlign: 'left',
                   borderColor: mode === m.value ? subjectColor : '#e2e8f0',
                   borderWidth: mode === m.value ? '2px' : '1px',
                   padding: mode === m.value ? '11px' : '12px',
@@ -376,7 +376,7 @@ export default function ReviewPage() {
         const isCorrect = checked && userAns === q.blanks?.[0]
         const isWrong = checked && userAns !== q.blanks?.[0]
         return (
-          <div key={i} style={{ ...cardStyle, padding: '14px', marginBottom: '8px', borderColor: isCorrect ? '#10b981' : isWrong ? '#ef4444' : '#e2e8f0', borderWidth: checked ? '2px' : '1px', padding: checked ? '13px' : '14px' }}>
+          <div key={i} style={{ ...cardStyle, borderColor: isCorrect ? '#10b981' : isWrong ? '#ef4444' : '#e2e8f0', borderWidth: checked ? '2px' : '1px', padding: checked ? '13px' : '14px' }}>
             <p style={{ fontSize: '14px', color: '#334155', margin: '0 0 10px', lineHeight: 1.6 }}>{q.text.replace('___', '▢▢▢')}</p>
             <input disabled={checked}
               style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', color: '#1e293b', background: '#f8fafc', boxSizing: 'border-box' }}
@@ -413,7 +413,7 @@ export default function ReviewPage() {
         const isCorrect = checked && answers[i] === q.answer
         const isWrong = checked && answers[i] !== q.answer
         return (
-          <div key={i} style={{ ...cardStyle, padding: '14px', marginBottom: '8px', borderColor: isCorrect ? '#10b981' : isWrong ? '#ef4444' : '#e2e8f0', borderWidth: checked ? '2px' : '1px', padding: checked ? '13px' : '14px' }}>
+          <div key={i} style={{ ...cardStyle, borderColor: isCorrect ? '#10b981' : isWrong ? '#ef4444' : '#e2e8f0', borderWidth: checked ? '2px' : '1px', padding: checked ? '13px' : '14px' }}>
             <p style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b', margin: '0 0 10px' }}>{i+1}. {q.text}</p>
             {q.type === 'choice' && q.options ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
