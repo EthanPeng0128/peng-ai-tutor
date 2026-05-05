@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { QUIZ_MODES, DIFFICULTY_LEVELS, getSubjectEmoji, getSubjectColor } from '@/lib/constants'
-import { ChevronRight, Loader2, RotateCcw, AlertCircle, ArrowLeft, Check } from 'lucide-react'
+import { ChevronRight, Loader2, RotateCcw, AlertCircle, ArrowLeft, Check, Sparkles } from 'lucide-react'
 
 type Phase = 'select-subject' | 'select-textbooks' | 'configure' | 'loading' | 'result'
 
@@ -24,6 +24,8 @@ export default function ReviewPage() {
   const [timerActive, setTimerActive] = useState(false)
   const [wrongOnly, setWrongOnly] = useState(false)
   const [tab, setTab] = useState<'textbook'|'wrong'>('textbook')
+  const [multiLoading, setMultiLoading] = useState(false)
+  const [multiSummaryHtml, setMultiSummaryHtml] = useState('')
 
   useEffect(() => {
     const id = localStorage.getItem('selectedChildId') ?? ''
@@ -40,7 +42,6 @@ export default function ReviewPage() {
     return () => clearInterval(interval)
   }, [timerActive])
 
-  // 計算每個科目的課文數量
   const subjectCounts: Record<string, number> = {}
   textbooks.forEach(t => {
     subjectCounts[t.subject_name] = (subjectCounts[t.subject_name] || 0) + 1
@@ -48,7 +49,6 @@ export default function ReviewPage() {
 
   const SUBJECTS = ['國語', '英文', '數學', '理化', '社會']
   const subjectsWithData = SUBJECTS.filter(s => subjectCounts[s] > 0)
-
   const filteredTextbooks = textbooks.filter(t => t.subject_name === selectedSubject)
   const selectedTextbooks = textbooks.filter(t => selectedIds.has(t.id))
 
@@ -61,10 +61,30 @@ export default function ReviewPage() {
     })
   }
 
+  async function generateMultiSummary(regenerate = false) {
+    if (selectedIds.size === 0) return
+    setMultiLoading(true)
+    try {
+      const res = await fetch('/api/multi-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ textbookIds: Array.from(selectedIds), regenerate }),
+      })
+      const data = await res.json()
+      if (data.html) {
+        setMultiSummaryHtml(data.html)
+      } else {
+        alert('生成失敗：\n' + JSON.stringify(data, null, 2))
+      }
+    } catch (e: any) {
+      alert('連線失敗：' + e.message)
+    }
+    setMultiLoading(false)
+  }
+
   async function startQuiz() {
     if (selectedTextbooks.length === 0 && !wrongOnly) return
     setPhase('loading'); setAnswers({}); setChecked(false); setTimer(0)
-
     let content = ''
     let title = '複習'
     if (wrongOnly && wrongAnswers.length > 0) {
@@ -74,7 +94,6 @@ export default function ReviewPage() {
       content = selectedTextbooks.map(t => `【${t.lesson_number} ${t.title}】\n${t.content}`).join('\n\n---\n\n')
       title = selectedTextbooks.length === 1 ? selectedTextbooks[0].title : `${selectedSubject} 多課複習（${selectedTextbooks.length} 課）`
     }
-
     const grade = selectedTextbooks[0]?.grade ?? '國二'
     const res = await fetch('/api/quiz', {
       method: 'POST',
@@ -127,29 +146,22 @@ export default function ReviewPage() {
     setSelectedIds(new Set()); setSelectedSubject(''); setWrongOnly(false)
   }
 
-  // ============ 通用樣式 ============
   const containerStyle: React.CSSProperties = { padding: '16px', background: '#f8fafc', minHeight: '100%', overflowY: 'auto' }
   const cardStyle: React.CSSProperties = { background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }
   const titleStyle: React.CSSProperties = { fontSize: '15px', fontWeight: 700, color: '#1e293b', margin: 0 }
   const subTitleStyle: React.CSSProperties = { fontSize: '13px', color: '#64748b', margin: 0 }
   const backBtnStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', color: '#1e293b', fontWeight: 600, cursor: 'pointer' }
 
-  // ============ 步驟1：選科目 ============
   if (phase === 'select-subject') return (
+    <>
     <div style={containerStyle}>
-      {/* 上方 Tab */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
         <button onClick={() => setTab('textbook')}
-          style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer',
-            background: tab === 'textbook' ? '#2563eb' : 'white', color: tab === 'textbook' ? 'white' : '#64748b',
-            boxShadow: tab === 'textbook' ? '0 2px 6px rgba(37,99,235,0.3)' : '0 1px 3px rgba(0,0,0,0.05)' }}>
+          style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', background: tab === 'textbook' ? '#2563eb' : 'white', color: tab === 'textbook' ? 'white' : '#64748b', boxShadow: tab === 'textbook' ? '0 2px 6px rgba(37,99,235,0.3)' : '0 1px 3px rgba(0,0,0,0.05)' }}>
           📚 選課文複習
         </button>
         <button onClick={() => setTab('wrong')}
-          style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer',
-            background: tab === 'wrong' ? '#ef4444' : 'white', color: tab === 'wrong' ? 'white' : '#64748b',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-            boxShadow: tab === 'wrong' ? '0 2px 6px rgba(239,68,68,0.3)' : '0 1px 3px rgba(0,0,0,0.05)' }}>
+          style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', background: tab === 'wrong' ? '#ef4444' : 'white', color: tab === 'wrong' ? 'white' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: tab === 'wrong' ? '0 2px 6px rgba(239,68,68,0.3)' : '0 1px 3px rgba(0,0,0,0.05)' }}>
           <AlertCircle size={14}/> 錯題重練 {wrongAnswers.length > 0 && <span style={{ background: 'rgba(255,255,255,0.3)', padding: '0 6px', borderRadius: '10px', fontSize: '11px' }}>{wrongAnswers.length}</span>}
         </button>
       </div>
@@ -168,9 +180,7 @@ export default function ReviewPage() {
                 const color = getSubjectColor(s)
                 return (
                   <button key={s} onClick={() => { setSelectedSubject(s); setSelectedIds(new Set()); setPhase('select-textbooks') }}
-                    style={{ ...cardStyle, padding: '20px 16px', cursor: 'pointer', textAlign: 'center', borderTop: `3px solid ${color}`, transition: 'transform 0.15s' }}
-                    onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                    onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
+                    style={{ ...cardStyle, padding: '20px 16px', cursor: 'pointer', textAlign: 'center', borderTop: `3px solid ${color}` }}>
                     <div style={{ fontSize: '32px', marginBottom: '6px' }}>{getSubjectEmoji(s)}</div>
                     <div style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '4px' }}>{s}</div>
                     <div style={{ fontSize: '12px', color: '#64748b' }}>{subjectCounts[s]} 課</div>
@@ -214,12 +224,13 @@ export default function ReviewPage() {
         </>
       )}
     </div>
+    </>
   )
 
-  // ============ 步驟2：選課文（多選） ============
   if (phase === 'select-textbooks') {
     const subjectColor = getSubjectColor(selectedSubject)
     return (
+      <>
       <div style={containerStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
           <button onClick={() => setPhase('select-subject')} style={backBtnStyle}>
@@ -231,16 +242,12 @@ export default function ReviewPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '80px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '120px' }}>
           {filteredTextbooks.map(t => {
             const isSelected = selectedIds.has(t.id)
             return (
               <button key={t.id} onClick={() => toggleSelect(t.id)}
-                style={{ ...cardStyle, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', textAlign: 'left',
-                  background: isSelected ? `${subjectColor}15` : 'white',
-                  borderColor: isSelected ? subjectColor : '#e2e8f0',
-                  borderWidth: isSelected ? '2px' : '1px',
-                  padding: isSelected ? '11px 13px' : '12px 14px' }}>
+                style={{ ...cardStyle, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', textAlign: 'left', background: isSelected ? `${subjectColor}15` : 'white', borderColor: isSelected ? subjectColor : '#e2e8f0', borderWidth: isSelected ? '2px' : '1px', padding: isSelected ? '11px 13px' : '12px 14px' }}>
                 <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: `2px solid ${isSelected ? subjectColor : '#cbd5e1'}`, background: isSelected ? subjectColor : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {isSelected && <Check size={14} color="white" strokeWidth={3}/>}
                 </div>
@@ -254,19 +261,42 @@ export default function ReviewPage() {
         </div>
 
         {selectedIds.size > 0 && (
-          <div style={{ position: 'fixed', bottom: '70px', left: 0, right: 0, padding: '12px 16px', background: 'white', borderTop: '1px solid #e2e8f0', boxShadow: '0 -4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '12px', zIndex: 10 }}>
-            <p style={{ fontSize: '13px', color: '#1e293b', margin: 0, fontWeight: 600 }}>已選 {selectedIds.size} 課</p>
-            <button onClick={() => setPhase('configure')}
-              style={{ flex: 1, padding: '10px 16px', borderRadius: '10px', background: subjectColor, color: 'white', border: 'none', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
-              下一步 →
-            </button>
+          <div style={{ position: 'fixed', bottom: '70px', left: 0, right: 0, padding: '12px 16px', background: 'white', borderTop: '1px solid #e2e8f0', boxShadow: '0 -4px 12px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '8px', zIndex: 10 }}>
+            <p style={{ fontSize: '13px', color: '#1e293b', margin: 0, fontWeight: 600, textAlign: 'center' }}>已選 {selectedIds.size} 課</p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => generateMultiSummary(false)} disabled={multiLoading}
+                style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', background: 'white', color: '#1e293b', border: '1px solid #cbd5e1', fontWeight: 700, fontSize: '13px', cursor: multiLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', opacity: multiLoading ? 0.6 : 1 }}>
+                {multiLoading ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }}/> 生成中…</> : <><Sparkles size={14}/> 大範圍整理</>}
+              </button>
+              <button onClick={() => setPhase('configure')}
+                style={{ flex: 1, padding: '10px 16px', borderRadius: '10px', background: subjectColor, color: 'white', border: 'none', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
+                出題複習 →
+              </button>
+            </div>
+            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
           </div>
         )}
       </div>
+
+      {multiSummaryHtml && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#000', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: '20px' }}>
+          <button onClick={() => setMultiSummaryHtml('')}
+            style={{ position: 'fixed', top: '12px', right: '12px', width: '44px', height: '44px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.95)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', fontSize: '20px', fontWeight: 700 }}>
+            ✕
+          </button>
+          <button onClick={() => generateMultiSummary(true)} disabled={multiLoading}
+            style={{ position: 'fixed', top: '12px', left: '12px', padding: '10px 16px', borderRadius: '22px', border: 'none', background: 'rgba(255,255,255,0.95)', cursor: 'pointer', zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <RotateCcw size={14}/> 重新生成
+          </button>
+          <div style={{ width: '95vw', maxWidth: '1240px' }}>
+            <div style={{ width: '100%', aspectRatio: '1240/877', background: 'white', borderRadius: '8px', overflow: 'hidden' }} dangerouslySetInnerHTML={{ __html: multiSummaryHtml }}/>
+          </div>
+        </div>
+      )}
+      </>
     )
   }
 
-  // ============ 步驟3：設定 ============
   if (phase === 'configure') {
     const subjectColor = wrongOnly ? '#ef4444' : getSubjectColor(selectedSubject)
     return (
@@ -274,7 +304,6 @@ export default function ReviewPage() {
         <button onClick={() => setPhase(wrongOnly ? 'select-subject' : 'select-textbooks')} style={{ ...backBtnStyle, marginBottom: '16px' }}>
           <ArrowLeft size={14}/> 返回
         </button>
-
         <div style={{ ...cardStyle, padding: '14px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontSize: '28px' }}>{wrongOnly ? '❌' : getSubjectEmoji(selectedSubject)}</span>
           <div>
@@ -282,17 +311,12 @@ export default function ReviewPage() {
             <p style={{ ...subTitleStyle }}>{wrongOnly ? `${wrongAnswers.length} 題` : `已選 ${selectedTextbooks.length} 課`}</p>
           </div>
         </div>
-
         <div style={{ marginBottom: '16px' }}>
           <p style={{ ...subTitleStyle, fontWeight: 600, marginBottom: '8px' }}>複習模式</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             {QUIZ_MODES.map(m => (
               <button key={m.value} onClick={() => setMode(m.value)}
-                style={{ ...cardStyle, cursor: 'pointer', textAlign: 'left',
-                  borderColor: mode === m.value ? subjectColor : '#e2e8f0',
-                  borderWidth: mode === m.value ? '2px' : '1px',
-                  padding: mode === m.value ? '11px' : '12px',
-                  background: mode === m.value ? `${subjectColor}10` : 'white' }}>
+                style={{ ...cardStyle, cursor: 'pointer', textAlign: 'left', borderColor: mode === m.value ? subjectColor : '#e2e8f0', borderWidth: mode === m.value ? '2px' : '1px', padding: mode === m.value ? '11px' : '12px', background: mode === m.value ? `${subjectColor}10` : 'white' }}>
                 <div style={{ fontSize: '20px', marginBottom: '4px' }}>{m.emoji}</div>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{m.label}</div>
                 <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>{m.desc}</div>
@@ -300,38 +324,28 @@ export default function ReviewPage() {
             ))}
           </div>
         </div>
-
         <div style={{ marginBottom: '16px' }}>
           <p style={{ ...subTitleStyle, fontWeight: 600, marginBottom: '8px' }}>難易度</p>
           <div style={{ display: 'flex', gap: '6px' }}>
             {DIFFICULTY_LEVELS.map(d => (
               <button key={d.value} onClick={() => setDifficulty(d.value)}
-                style={{ flex: 1, padding: '10px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                  border: '1px solid',
-                  borderColor: difficulty === d.value ? subjectColor : '#e2e8f0',
-                  background: difficulty === d.value ? subjectColor : 'white',
-                  color: difficulty === d.value ? 'white' : '#64748b' }}>
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: '1px solid', borderColor: difficulty === d.value ? subjectColor : '#e2e8f0', background: difficulty === d.value ? subjectColor : 'white', color: difficulty === d.value ? 'white' : '#64748b' }}>
                 {d.label}
               </button>
             ))}
           </div>
         </div>
-
         <div style={{ marginBottom: '20px' }}>
           <p style={{ ...subTitleStyle, fontWeight: 600, marginBottom: '8px' }}>題數：<span style={{ color: subjectColor, fontWeight: 700 }}>{count}</span> 題</p>
-          <input type="range" min={3} max={30} value={count} onChange={e => setCount(+e.target.value)}
-            style={{ width: '100%', accentColor: subjectColor }}/>
+          <input type="range" min={3} max={30} value={count} onChange={e => setCount(+e.target.value)} style={{ width: '100%', accentColor: subjectColor }}/>
         </div>
-
-        <button onClick={startQuiz}
-          style={{ width: '100%', padding: '14px', borderRadius: '10px', background: subjectColor, color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}>
+        <button onClick={startQuiz} style={{ width: '100%', padding: '14px', borderRadius: '10px', background: subjectColor, color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}>
           開始複習 🚀
         </button>
       </div>
     )
   }
 
-  // ============ Loading ============
   if (phase === 'loading') return (
     <div style={{ ...containerStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
       <Loader2 size={36} color="#2563eb" style={{ animation: 'spin 1s linear infinite' }}/>
@@ -340,7 +354,6 @@ export default function ReviewPage() {
     </div>
   )
 
-  // ============ Result: SUMMARY ============
   if (phase === 'result' && mode === 'summary') return (
     <div style={containerStyle}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -361,7 +374,6 @@ export default function ReviewPage() {
     </div>
   )
 
-  // ============ Result: FILL ============
   if (phase === 'result' && mode === 'fill') return (
     <div style={containerStyle}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -376,11 +388,9 @@ export default function ReviewPage() {
         const isCorrect = checked && userAns === q.blanks?.[0]
         const isWrong = checked && userAns !== q.blanks?.[0]
         return (
-          <div key={i} style={{ ...cardStyle, borderColor: isCorrect ? '#10b981' : isWrong ? '#ef4444' : '#e2e8f0', borderWidth: checked ? '2px' : '1px', padding: checked ? '13px' : '14px' }}>
+          <div key={i} style={{ ...cardStyle, marginBottom: '8px', borderColor: isCorrect ? '#10b981' : isWrong ? '#ef4444' : '#e2e8f0', borderWidth: checked ? '2px' : '1px', padding: checked ? '13px' : '14px' }}>
             <p style={{ fontSize: '14px', color: '#334155', margin: '0 0 10px', lineHeight: 1.6 }}>{q.text.replace('___', '▢▢▢')}</p>
-            <input disabled={checked}
-              style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', color: '#1e293b', background: '#f8fafc', boxSizing: 'border-box' }}
-              placeholder="填入答案…" value={answers[i] ?? ''} onChange={e => setAnswers(a => ({ ...a, [i]: e.target.value }))}/>
+            <input disabled={checked} style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', color: '#1e293b', background: '#f8fafc', boxSizing: 'border-box' }} placeholder="填入答案…" value={answers[i] ?? ''} onChange={e => setAnswers(a => ({ ...a, [i]: e.target.value }))}/>
             {checked && isWrong && <p style={{ fontSize: '12px', color: '#10b981', marginTop: '6px', marginBottom: 0, fontWeight: 600 }}>✓ 正確答案：{q.blanks?.[0]}</p>}
           </div>
         )
@@ -393,7 +403,6 @@ export default function ReviewPage() {
     </div>
   )
 
-  // ============ Result: EXAM ============
   if (phase === 'result' && mode === 'exam') return (
     <div style={containerStyle}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -413,7 +422,7 @@ export default function ReviewPage() {
         const isCorrect = checked && answers[i] === q.answer
         const isWrong = checked && answers[i] !== q.answer
         return (
-          <div key={i} style={{ ...cardStyle, borderColor: isCorrect ? '#10b981' : isWrong ? '#ef4444' : '#e2e8f0', borderWidth: checked ? '2px' : '1px', padding: checked ? '13px' : '14px' }}>
+          <div key={i} style={{ ...cardStyle, marginBottom: '8px', borderColor: isCorrect ? '#10b981' : isWrong ? '#ef4444' : '#e2e8f0', borderWidth: checked ? '2px' : '1px', padding: checked ? '13px' : '14px' }}>
             <p style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b', margin: '0 0 10px' }}>{i+1}. {q.text}</p>
             {q.type === 'choice' && q.options ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -423,19 +432,14 @@ export default function ReviewPage() {
                   const isPicked = answers[i] === letter
                   return (
                     <button key={j} disabled={checked} onClick={() => setAnswers(a => ({ ...a, [i]: letter }))}
-                      style={{ width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', cursor: checked ? 'default' : 'pointer', border: '1px solid',
-                        borderColor: checked ? (isAns ? '#10b981' : isPicked ? '#ef4444' : '#e2e8f0') : (isPicked ? '#2563eb' : '#e2e8f0'),
-                        background: checked ? (isAns ? '#f0fdf4' : isPicked ? '#fef2f2' : 'white') : (isPicked ? '#eff6ff' : 'white'),
-                        color: checked ? (isAns ? '#10b981' : isPicked ? '#ef4444' : '#64748b') : (isPicked ? '#2563eb' : '#334155') }}>
+                      style={{ width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', cursor: checked ? 'default' : 'pointer', border: '1px solid', borderColor: checked ? (isAns ? '#10b981' : isPicked ? '#ef4444' : '#e2e8f0') : (isPicked ? '#2563eb' : '#e2e8f0'), background: checked ? (isAns ? '#f0fdf4' : isPicked ? '#fef2f2' : 'white') : (isPicked ? '#eff6ff' : 'white'), color: checked ? (isAns ? '#10b981' : isPicked ? '#ef4444' : '#64748b') : (isPicked ? '#2563eb' : '#334155') }}>
                       {letter}. {opt}
                     </button>
                   )
                 })}
               </div>
             ) : (
-              <input disabled={checked}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', color: '#1e293b', background: '#f8fafc', boxSizing: 'border-box' }}
-                placeholder="填入答案…" value={answers[i] ?? ''} onChange={e => setAnswers(a => ({ ...a, [i]: e.target.value }))}/>
+              <input disabled={checked} style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', color: '#1e293b', background: '#f8fafc', boxSizing: 'border-box' }} placeholder="填入答案…" value={answers[i] ?? ''} onChange={e => setAnswers(a => ({ ...a, [i]: e.target.value }))}/>
             )}
             {checked && isWrong && <p style={{ fontSize: '12px', color: '#10b981', marginTop: '8px', marginBottom: 0, fontWeight: 600 }}>✓ {q.answer} — {q.explanation}</p>}
           </div>
@@ -449,7 +453,6 @@ export default function ReviewPage() {
     </div>
   )
 
-  // ============ Result: KNOWLEDGE ============
   if (phase === 'result' && mode === 'knowledge') return (
     <div style={containerStyle}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
