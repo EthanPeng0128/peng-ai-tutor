@@ -444,7 +444,7 @@ export default function ReviewPage() {
                               <div key={tbId}>
                                 <button onClick={() => toggleTextbookExpand(tbId)}
                                   style={{ width: '100%', padding: '10px 14px 10px 30px', background: '#f8fafc', border: 'none', borderTop: '1px solid #e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <ChevronRight size={14} color="#64748b" style={{ transform: tbExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}/>
+                                  <ChevronRight size={14} color="#64748b" style={{ transform: 'none', transition: 'transform 0.2s' }}/>
                                   <div style={{ flex: 1, textAlign: 'left' }}>
                                     <p style={{ fontSize: '13px', fontWeight: 600, color: '#334155', margin: 0 }}>
                                       {tb ? `${tb.lesson_number} ${tb.title}` : '未知章節'}
@@ -498,8 +498,8 @@ export default function ReviewPage() {
         <div style={{ position: 'fixed', top: '12px', left: '12px', padding: '8px 16px', borderRadius: '20px', background: 'rgba(255,255,255,0.95)', zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>
           {viewingSummary.title || '未命名'}
         </div>
-        <div style={{ width: '100vw', height: '100vh', overflow: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'pinch-zoom' }}>
-          <div id="library-view-img" style={{ width: '1240px', height: '877px', background: 'white', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, transform: typeof window !== 'undefined' && window.innerWidth < 768 ? 'rotate(90deg) scale(0.45)' : 'scale(0.95)', transformOrigin: 'center center' }} dangerouslySetInnerHTML={{ __html: viewingSummary.html_content }}/>
+        <div style={{ width: '100vw', height: '100vh', overflow: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pinch-zoom auto', padding: '60px 12px 20px' }}>
+          <div id="library-view-img" style={{ width: '1240px', height: '877px', background: 'white', borderRadius: '8px', overflow: 'hidden', margin: '0 auto', flexShrink: 0 }} dangerouslySetInnerHTML={{ __html: viewingSummary.html_content }}/>
         </div>
       </div>
     )}
@@ -558,7 +558,7 @@ export default function ReviewPage() {
       </div>
 
       {multiSummaryHtml && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#000', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: '20px', WebkitOverflowScrolling: 'touch', touchAction: 'pinch-zoom' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#000', zIndex: 9999, overflow: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pinch-zoom auto', padding: '20px', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
           <button onClick={tryCloseMultiPreview}
             style={{ position: 'fixed', top: '12px', right: '12px', width: '44px', height: '44px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.95)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', fontSize: '20px', fontWeight: 700 }}>✕</button>
           <button onClick={() => generateMultiSummary(true)} disabled={multiLoading}
@@ -566,7 +566,7 @@ export default function ReviewPage() {
             <RotateCcw size={14}/> 重新生成
           </button>
           <div style={{ width: '95vw', maxWidth: '1240px' }}>
-            <div id="multi-preview-img" style={{ width: typeof window !== 'undefined' && window.innerWidth < 768 ? '1240px' : '100%', height: typeof window !== 'undefined' && window.innerWidth < 768 ? '877px' : 'auto', aspectRatio: typeof window !== 'undefined' && window.innerWidth < 768 ? undefined : '1240/877', background: 'white', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, transform: typeof window !== 'undefined' && window.innerWidth < 768 ? 'rotate(90deg) scale(0.42)' : 'none', transformOrigin: 'center center' }} dangerouslySetInnerHTML={{ __html: multiSummaryHtml }}/>
+            <div id="multi-preview-img" style={{ width: '1240px', height: '877px', background: 'white', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }} dangerouslySetInnerHTML={{ __html: multiSummaryHtml }}/>
           </div>
           <div style={{ position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,255,255,0.98)', borderRadius: '16px', padding: '14px 18px', boxShadow: '0 4px 16px rgba(0,0,0,0.4)', zIndex: 10001, display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '320px', maxWidth: '90vw' }}>
             <input value={multiTitle} onChange={e => setMultiTitle(e.target.value)} placeholder="輸入標題..."
