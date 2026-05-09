@@ -226,6 +226,7 @@ export default function TextbookPage() {
                           <p style={{fontSize:'13px',color:'#1e293b',fontWeight:'500',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{book.lesson_number}：{book.title}</p>
                           <p style={{fontSize:'11px',color:'#94a3b8',margin:'2px 0 0'}}>{book.grade} · {book.semester}{book.sub_subject?` · ${book.sub_subject}`:''}</p>
                           {book.created_at && <p style={{fontSize:'10px',color:'#cbd5e1',margin:'2px 0 0'}}>上傳時間：{new Date(book.created_at).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})}</p>}
+                          {book.created_at && <p style={{fontSize:'10px',color:'#cbd5e1',margin:'2px 0 0'}}>上傳時間：{new Date(book.created_at).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})}</p>}
                         </div>
                         <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
                           <div style={{width:'8px',height:'8px',borderRadius:'50%',background:book.status==='ready'?'#22c55e':'#f59e0b',flexShrink:0}}/>
