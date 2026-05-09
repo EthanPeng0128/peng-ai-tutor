@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { QUIZ_MODES, DIFFICULTY_LEVELS, getSubjectEmoji, getSubjectColor } from '@/lib/constants'
 import { ChevronRight, Loader2, RotateCcw, AlertCircle, ArrowLeft, Check, Sparkles, Save, ChevronDown } from 'lucide-react'
+import html2canvas from 'html2canvas'
 
 type Phase = 'select-subject' | 'select-textbooks' | 'configure' | 'loading' | 'result'
 
@@ -160,6 +161,37 @@ export default function ReviewPage() {
       alert('儲存失敗：' + e.message)
     }
     setMultiSaving(false)
+  }
+
+  async function downloadAsImage(elementId: string, filename: string) {
+    const el = document.getElementById(elementId)
+    if (!el) { alert('找不到圖片元素'); return }
+    try {
+      const canvas = await html2canvas(el, { backgroundColor: 'white', scale: 2, useCORS: true })
+      const link = document.createElement('a')
+      link.download = `${filename}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (e: any) {
+      alert('下載失敗：' + e.message)
+    }
+  }
+
+  function printElement(elementId: string) {
+    const el = document.getElementById(elementId)
+    if (!el) { alert('找不到圖片元素'); return }
+    const printWindow = window.open('', '_blank', 'width=1300,height=900')
+    if (!printWindow) { alert('請允許彈出視窗以列印'); return }
+    printWindow.document.write(`
+      <html><head><title>列印</title>
+      <style>
+        @page { size: A4 landscape; margin: 0; }
+        body { margin: 0; padding: 0; }
+        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+      </style>
+      </head><body>${el.outerHTML}<script>setTimeout(() => { window.print(); window.close() }, 500)</script></body></html>
+    `)
+    printWindow.document.close()
   }
 
   function tryCloseMultiPreview() {
@@ -460,12 +492,14 @@ export default function ReviewPage() {
     )}
     {viewingSummary && (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#000', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: '20px' }}>
+        <button onClick={() => downloadAsImage('library-view-img', viewingSummary.title || '重點圖')} style={{ position: 'fixed', top: '12px', right: '170px', height: '44px', padding: '0 16px', borderRadius: '22px', border: 'none', background: 'rgba(255,255,255,0.95)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', fontSize: '14px', fontWeight: 700, color: '#1e293b', gap: '4px' }}>💾 下載</button>
+        <button onClick={() => printElement('library-view-img')} style={{ position: 'fixed', top: '12px', right: '70px', height: '44px', padding: '0 16px', borderRadius: '22px', border: 'none', background: 'rgba(255,255,255,0.95)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', fontSize: '14px', fontWeight: 700, color: '#1e293b', gap: '4px' }}>🖨 列印</button>
         <button onClick={() => setViewingSummary(null)} style={{ position: 'fixed', top: '12px', right: '12px', width: '44px', height: '44px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.95)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', fontSize: '20px', fontWeight: 700 }}>✕</button>
         <div style={{ position: 'fixed', top: '12px', left: '12px', padding: '8px 16px', borderRadius: '20px', background: 'rgba(255,255,255,0.95)', zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>
           {viewingSummary.title || '未命名'}
         </div>
         <div style={{ width: '95vw', maxWidth: '1240px' }}>
-          <div style={{ width: '100%', aspectRatio: '1240/877', background: 'white', borderRadius: '8px', overflow: 'hidden' }} dangerouslySetInnerHTML={{ __html: viewingSummary.html_content }}/>
+          <div id="library-view-img" style={{ width: '100%', aspectRatio: '1240/877', background: 'white', borderRadius: '8px', overflow: 'hidden' }} dangerouslySetInnerHTML={{ __html: viewingSummary.html_content }}/>
         </div>
       </div>
     )}
@@ -532,7 +566,7 @@ export default function ReviewPage() {
             <RotateCcw size={14}/> 重新生成
           </button>
           <div style={{ width: '95vw', maxWidth: '1240px' }}>
-            <div style={{ width: '100%', aspectRatio: '1240/877', background: 'white', borderRadius: '8px', overflow: 'hidden' }} dangerouslySetInnerHTML={{ __html: multiSummaryHtml }}/>
+            <div id="multi-preview-img" style={{ width: '100%', aspectRatio: '1240/877', background: 'white', borderRadius: '8px', overflow: 'hidden' }} dangerouslySetInnerHTML={{ __html: multiSummaryHtml }}/>
           </div>
           <div style={{ position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,255,255,0.98)', borderRadius: '16px', padding: '14px 18px', boxShadow: '0 4px 16px rgba(0,0,0,0.4)', zIndex: 10001, display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '320px', maxWidth: '90vw' }}>
             <input value={multiTitle} onChange={e => setMultiTitle(e.target.value)} placeholder="輸入標題..."
@@ -541,6 +575,14 @@ export default function ReviewPage() {
               <button onClick={() => generateMultiSummary(true)} disabled={multiLoading || multiSaving}
                 style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: 'white', color: '#475569', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                 🔄 重新生成
+              </button>
+              <button onClick={() => downloadAsImage('multi-preview-img', multiTitle || '大範圍整理')}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: 'white', color: '#475569', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                💾 下載
+              </button>
+              <button onClick={() => printElement('multi-preview-img')}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: 'white', color: '#475569', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                🖨 列印
               </button>
               <button onClick={saveMultiToLibrary} disabled={multiSaving || multiSaved || !multiTitle.trim()}
                 style={{ flex: 2, padding: '10px', borderRadius: '8px', border: 'none', background: multiSaved ? '#10b981' : (multiSaving ? '#94a3b8' : '#a78bfa'), color: 'white', fontSize: '14px', fontWeight: 700, cursor: multiSaved ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
