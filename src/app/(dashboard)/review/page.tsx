@@ -26,6 +26,9 @@ export default function ReviewPage() {
   const [tab, setTab] = useState<'textbook'|'wrong'|'library'>('textbook')
   const [multiLoading, setMultiLoading] = useState(false)
   const [multiSummaryHtml, setMultiSummaryHtml] = useState('')
+  const [multiTitle, setMultiTitle] = useState('')
+  const [multiSaved, setMultiSaved] = useState(false)
+  const [multiSaving, setMultiSaving] = useState(false)
   const [wrongSavedMsg, setWrongSavedMsg] = useState('')
   const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set())
   const [expandedTextbooks, setExpandedTextbooks] = useState<Set<string>>(new Set())
@@ -105,17 +108,17 @@ export default function ReviewPage() {
   async function generateMultiSummary(regenerate = false) {
     if (selectedIds.size === 0) return
     setMultiLoading(true)
+    setMultiSaved(false)
     try {
       const res = await fetch('/api/multi-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ textbookIds: Array.from(selectedIds), regenerate }),
+        body: JSON.stringify({ textbookIds: Array.from(selectedIds), regenerate, saveToLibrary: false }),
       })
       const data = await res.json()
       if (data.html) {
         setMultiSummaryHtml(data.html)
-        const { data: libData } = await supabase.from('summary_sheets').select('*').eq('child_id', childId).order('created_at', { ascending: false })
-        setSummaryLibrary(libData ?? [])
+        setMultiTitle(data.title || '大範圍整理')
       } else {
         alert('生成失敗：\n' + JSON.stringify(data, null, 2))
       }
@@ -123,6 +126,40 @@ export default function ReviewPage() {
       alert('連線失敗：' + e.message)
     }
     setMultiLoading(false)
+  }
+
+  async function saveMultiToLibrary() {
+    if (!multiSummaryHtml || !multiTitle.trim()) return
+    setMultiSaving(true)
+    try {
+      const res = await fetch('/api/multi-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ textbookIds: Array.from(selectedIds), regenerate: true, saveToLibrary: true, customTitle: multiTitle.trim() }),
+      })
+      const data = await res.json()
+      if (data.saved) {
+        setMultiSaved(true)
+        const { data: libData } = await supabase.from('summary_sheets').select('*').eq('child_id', childId).order('created_at', { ascending: false })
+        setSummaryLibrary(libData ?? [])
+      } else {
+        alert('儲存失敗：' + JSON.stringify(data))
+      }
+    } catch (e: any) {
+      alert('儲存失敗：' + e.message)
+    }
+    setMultiSaving(false)
+  }
+
+  function tryCloseMultiPreview() {
+    if (multiSummaryHtml && !multiSaved) {
+      if (!confirm('⚠️ 這張重點圖還沒存到圖庫哦！\n\n關閉後就找不回來了，確定要離開嗎？')) {
+        return
+      }
+    }
+    setMultiSummaryHtml('')
+    setMultiSaved(false)
+    setMultiTitle('')
   }
 
   async function startQuiz() {
@@ -477,7 +514,7 @@ export default function ReviewPage() {
 
       {multiSummaryHtml && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#000', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: '20px' }}>
-          <button onClick={() => setMultiSummaryHtml('')}
+          <button onClick={tryCloseMultiPreview}
             style={{ position: 'fixed', top: '12px', right: '12px', width: '44px', height: '44px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.95)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', fontSize: '20px', fontWeight: 700 }}>✕</button>
           <button onClick={() => generateMultiSummary(true)} disabled={multiLoading}
             style={{ position: 'fixed', top: '12px', left: '12px', padding: '10px 16px', borderRadius: '22px', border: 'none', background: 'rgba(255,255,255,0.95)', cursor: 'pointer', zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -485,6 +522,20 @@ export default function ReviewPage() {
           </button>
           <div style={{ width: '95vw', maxWidth: '1240px' }}>
             <div style={{ width: '100%', aspectRatio: '1240/877', background: 'white', borderRadius: '8px', overflow: 'hidden' }} dangerouslySetInnerHTML={{ __html: multiSummaryHtml }}/>
+          </div>
+          <div style={{ position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,255,255,0.98)', borderRadius: '16px', padding: '14px 18px', boxShadow: '0 4px 16px rgba(0,0,0,0.4)', zIndex: 10001, display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '320px', maxWidth: '90vw' }}>
+            <input value={multiTitle} onChange={e => setMultiTitle(e.target.value)} placeholder="輸入標題..."
+              style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', color: '#1e293b' }} disabled={multiSaved}/>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => generateMultiSummary(true)} disabled={multiLoading || multiSaving}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: 'white', color: '#475569', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                🔄 重新生成
+              </button>
+              <button onClick={saveMultiToLibrary} disabled={multiSaving || multiSaved || !multiTitle.trim()}
+                style={{ flex: 2, padding: '10px', borderRadius: '8px', border: 'none', background: multiSaved ? '#10b981' : (multiSaving ? '#94a3b8' : '#a78bfa'), color: 'white', fontSize: '14px', fontWeight: 700, cursor: multiSaved ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                {multiSaving ? '⏳ 儲存中...' : multiSaved ? '✅ 已存入圖庫' : '💾 存入圖庫'}
+              </button>
+            </div>
           </div>
         </div>
       )}

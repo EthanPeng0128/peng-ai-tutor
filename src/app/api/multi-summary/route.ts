@@ -134,20 +134,24 @@ ${combinedContent}
       return NextResponse.json({ error: 'AI 生成失敗', stage, debug: { preview: html.slice(0, 200) } }, { status: 500 })
     }
 
-    stage = 'save-result'
-    const defaultTitle = `${subjectName} 大範圍整理（${textbooks.length}課）`
-    await supabase.from('summary_sheets').insert({
-      textbook_id: cacheKey,
-      child_id: childId,
-      html_content: html,
-      subject_color: colors.main,
-      title: defaultTitle,
-      is_multi: true,
-      textbook_count: textbooks.length,
-      subject_name: subjectName,
-    })
-
-    return NextResponse.json({ html, cached: false, count: textbooks.length, title: defaultTitle })
+    const defaultTitle = customTitle || `${subjectName} 大範圍整理（${textbooks.length}課）`
+    
+    if (saveToLibrary) {
+      stage = 'save-result'
+      await supabase.from('summary_sheets').insert({
+        textbook_id: cacheKey,
+        child_id: childId,
+        html_content: html,
+        subject_color: colors.main,
+        title: defaultTitle,
+        is_multi: true,
+        textbook_count: textbooks.length,
+        subject_name: subjectName,
+      })
+      return NextResponse.json({ html, saved: true, count: textbooks.length, title: defaultTitle, subjectName })
+    }
+    
+    return NextResponse.json({ html, saved: false, count: textbooks.length, title: defaultTitle, subjectName })
   } catch (e: any) {
     return NextResponse.json({ error: '伺服器錯誤', stage, debug: { msg: e.message } }, { status: 500 })
   }
