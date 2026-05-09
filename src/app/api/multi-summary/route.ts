@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   let stage = 'init'
   try {
     stage = 'parse-body'
-    const { textbookIds, regenerate, customTitle } = await request.json()
+    const { textbookIds, regenerate, saveToLibrary, customTitle } = await request.json()
     if (!textbookIds || !Array.isArray(textbookIds) || textbookIds.length === 0) {
       return NextResponse.json({ error: '缺少 textbookIds', stage }, { status: 400 })
     }
