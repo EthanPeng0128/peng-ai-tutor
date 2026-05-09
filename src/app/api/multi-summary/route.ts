@@ -29,17 +29,7 @@ export async function POST(request: Request) {
     const cacheKey = [...textbookIds].sort().join(',')
 
     stage = 'check-cache'
-    if (!regenerate) {
-      const { data: cacheRows } = await supabase
-        .from('summary_sheets')
-        .select('html_content')
-        .eq('textbook_id', cacheKey)
-        .order('created_at', { ascending: false })
-        .limit(1)
-      if (cacheRows && cacheRows.length > 0) {
-        return NextResponse.json({ html: cacheRows[0].html_content, cached: true })
-      }
-    }
+    // Cache disabled - 確保每次都 INSERT 到資料庫，新生成的圖才會出現在圖庫
 
     stage = 'fetch-textbooks'
     const { data: textbooks, error: tbError } = await supabase
