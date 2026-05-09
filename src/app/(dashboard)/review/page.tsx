@@ -26,6 +26,8 @@ export default function ReviewPage() {
   const [tab, setTab] = useState<'textbook'|'wrong'|'library'>('textbook')
   const [multiLoading, setMultiLoading] = useState(false)
   const [multiSummaryHtml, setMultiSummaryHtml] = useState('')
+  const [multiSubjectName, setMultiSubjectName] = useState('')
+  const [multiCacheKey, setMultiCacheKey] = useState('')
   const [multiTitle, setMultiTitle] = useState('')
   const [multiSaved, setMultiSaved] = useState(false)
   const [multiSaving, setMultiSaving] = useState(false)
@@ -119,6 +121,8 @@ export default function ReviewPage() {
       if (data.html) {
         setMultiSummaryHtml(data.html)
         setMultiTitle(data.title || '大範圍整理')
+        setMultiSubjectName(data.subjectName || '')
+        setMultiCacheKey([...selectedIds].sort().join(','))
       } else {
         alert('生成失敗：\n' + JSON.stringify(data, null, 2))
       }
@@ -132,10 +136,18 @@ export default function ReviewPage() {
     if (!multiSummaryHtml || !multiTitle.trim()) return
     setMultiSaving(true)
     try {
-      const res = await fetch('/api/multi-summary', {
+      const res = await fetch('/api/save-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ textbookIds: Array.from(selectedIds), regenerate: true, saveToLibrary: true, customTitle: multiTitle.trim() }),
+        body: JSON.stringify({
+          childId,
+          htmlContent: multiSummaryHtml,
+          title: multiTitle.trim(),
+          isMulti: true,
+          textbookCount: selectedIds.size,
+          subjectName: multiSubjectName,
+          textbookId: multiCacheKey,
+        }),
       })
       const data = await res.json()
       if (data.saved) {
