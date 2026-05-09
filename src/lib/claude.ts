@@ -9,16 +9,25 @@ export async function chatWithTutor(params: { messages: Array<{role:"user"|"assi
   const r = await anthropic.messages.create({ model:"claude-opus-4-5-20251101", max_tokens:2048, system:sys[params.mode]??sys.child, messages:params.messages })
   return r.content[0].type==="text"?r.content[0].text:""
 }
-export async function generateQuiz(p: { content:string; mode:string; difficulty:string; count:number; grade:string; title:string }) {
+export async function generateQuiz(p: { content:string; mode:string; difficulty:string; count:number; grade:string; title:string; textbooks?: Array<{subject:string;lesson_number:string;title:string}> }) {
   const dm: Record<string,string> = {basic:"基礎",medium:"中等",advanced:"進階",exam:"會考"}
+  
+  // 章節列表：給 AI 知道有哪些章節可以標
+  const lessonList = p.textbooks && p.textbooks.length > 0
+    ? "\n\n本次出題涵蓋章節（每題必須在 lesson 欄位標明來自哪一課，格式必須完全是 \"科目 第N課：標題\"）：\n" + 
+      p.textbooks.map(t => `- ${t.subject} ${t.lesson_number}：${t.title}`).join("\n")
+    : ""
+  
+  const lessonHint = p.textbooks && p.textbooks.length > 0 ? "並標註 lesson:\"科目 第N課：標題\"，" : ""
+  
   const mp: Record<string,string> = {
     summary: "從課文萃取"+p.count+"個必考知識點，JSON:{items:[{point,detail,importance:high|medium}]}",
-    fill: "從課文出"+p.count+"題填空("+dm[p.difficulty]+")，JSON:{questions:[{text:題目用___,blanks:[答案],hint}]}",
-    exam: "從課文出"+p.count+"題考卷("+dm[p.difficulty]+")選擇填充混合，JSON:{questions:[{type:choice|fill,text,options:[A,B,C,D],answer,explanation}]}",
+    fill: "從課文出"+p.count+"題填空("+dm[p.difficulty]+")，"+lessonHint+"JSON:{questions:[{text:題目用___,blanks:[答案],hint,lesson:\"科目 第N課：標題\"}]}",
+    exam: "從課文出"+p.count+"題考卷("+dm[p.difficulty]+")選擇填充混合，"+lessonHint+"JSON:{questions:[{type:choice|fill,text,options:[A,B,C,D],answer,explanation,lesson:\"科目 第N課：標題\"}]}",
     knowledge: "將課文拆解為"+p.count+"個學習單元，JSON:{units:[{title,explanation,example,question,answer}]}",
   }
   const r = await anthropic.messages.create({ model:"claude-opus-4-5-20251101", max_tokens:4096,
-    messages:[{role:"user",content:"台灣國中家教幫"+p.grade+"複習「"+p.title+"」\n\n課文:\n"+p.content.slice(0,6000)+"\n\n"+mp[p.mode]+"\n只回傳JSON。"}]
+    messages:[{role:"user",content:"台灣國中家教幫"+p.grade+"複習「"+p.title+"」"+lessonList+"\n\n課文:\n"+p.content.slice(0,6000)+"\n\n"+mp[p.mode]+"\n只回傳JSON。"}]
   })
   const t = r.content[0].type==="text"?r.content[0].text:""
   try{return JSON.parse(t)}catch{const m=t.match(/\{[\s\S]*\}/);return m?JSON.parse(m[0]):null}

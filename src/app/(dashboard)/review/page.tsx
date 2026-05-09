@@ -293,7 +293,14 @@ export default function ReviewPage() {
     const res = await fetch('/api/quiz', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, mode, difficulty, count, grade, title }),
+      body: JSON.stringify({ 
+        content, mode, difficulty, count, grade, title,
+        textbooks: selectedTextbooks.map(t => ({
+          subject: t.subject_name,
+          lesson_number: t.lesson_number,
+          title: t.title,
+        })),
+      }),
     })
     const data = await res.json()
     setResult(data)
@@ -762,7 +769,8 @@ export default function ReviewPage() {
         const isWrong = checked && userAns !== q.blanks?.[0]
         return (
           <div key={i} style={{ ...cardStyle, marginBottom: '8px', borderColor: isCorrect ? '#10b981' : isWrong ? '#ef4444' : '#e2e8f0', borderWidth: checked ? '2px' : '1px', padding: checked ? '13px' : '14px' }}>
-            <p style={{ fontSize: '14px', color: '#334155', margin: '0 0 10px', lineHeight: 1.6 }}>{q.text.replace('___', '▢▢▢')}</p>
+            <p style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b', margin: '0 0 4px' }}>{i+1}. {q.text.replace('___', '▢▢▢')}</p>
+            {q.lesson && <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 10px', fontWeight: 400 }}>[{q.lesson}]</p>}
             <input disabled={checked} style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', color: '#1e293b', background: '#f8fafc', boxSizing: 'border-box' }} placeholder="填入答案…" value={answers[i] ?? ''} onChange={e => setAnswers(a => ({ ...a, [i]: e.target.value }))}/>
             {checked && isWrong && <p style={{ fontSize: '12px', color: '#10b981', marginTop: '6px', marginBottom: 0, fontWeight: 600 }}>✓ 正確答案：{q.blanks?.[0]}</p>}
           </div>
@@ -804,7 +812,8 @@ export default function ReviewPage() {
         const isWrong = checked && answers[i] !== q.answer
         return (
           <div key={i} style={{ ...cardStyle, marginBottom: '8px', borderColor: isCorrect ? '#10b981' : isWrong ? '#ef4444' : '#e2e8f0', borderWidth: checked ? '2px' : '1px', padding: checked ? '13px' : '14px' }}>
-            <p style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b', margin: '0 0 10px' }}>{i+1}. {q.text}</p>
+            <p style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b', margin: '0 0 4px' }}>{i+1}. {q.text}</p>
+            {q.lesson && <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 10px', fontWeight: 400 }}>[{q.lesson}]</p>}
             {q.type === 'choice' && q.options ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {q.options.map((opt: string, j: number) => {
