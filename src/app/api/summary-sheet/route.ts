@@ -73,14 +73,19 @@ ${textbook.content}
 
 【強制規則 - 排版必遵守】
 1. 整體尺寸：固定 寬 1240px、高 877px（A4 橫向滿版，不可超出）
-2. 最外層 div 樣式必須：width:1240px;height:877px;padding:12px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;background:white
-3. 排版用 CSS grid，gap 6px，4 欄 × 3 列 = 12 格
-4. 每張卡片內部用 padding:8px、box-sizing:border-box，文字必須完整顯示在卡片內
-5. 字體：卡片標題 12px (font-weight:700)、內文 10px、行高 1.35
+2. 最外層 div 樣式必須：width:1240px;height:877px;padding:14px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;background:white;font-family:-apple-system,sans-serif
+3. 排版用 CSS grid，gap 8px，3 欄 × 3 列 = 9 格（讓字夠大）。如果內容真的很多才用 4×3=12 格
+4. 每張卡片內部用 padding:12px、box-sizing:border-box、border-radius:8px
+5. 字體必須夠大易讀：
+   - 卡片標題 16px (font-weight:700, margin-bottom:8px)
+   - 內文 14px (line-height:1.5, font-weight:500)
+   - 副標題 13px
+   - 條列項目間距 4~6px
 6. 顏色：主色 ${colors.main}、淺底 ${colors.light}、深字 ${colors.dark}、強調色 ${colors.mid}
-7. 卡片必須 overflow:hidden，內容超出時用 line-height 控制不可重疊
-8. 絕對禁止：position:absolute 不可重疊文字、不可使用 transform 推擠
-9. 所有 li、div、p 都要 margin:0、padding 適中，避免溢位
+7. 卡片必須 overflow:hidden，文字優先簡潔，避免長句
+8. 絕對禁止：position:absolute 重疊文字、transform 推擠
+9. 內容寧可少而精，不要塞太多 → 字大才好讀
+10. 所有 li、div、p 都要 margin:0 ~ 4px，避免溢位
 
 【內容要求 — 越多越好】
 6. 把課文裡所有專有名詞、定義、年代、人物、地點、特徵、原因、結果、比較項目、口訣……全部抓出來
