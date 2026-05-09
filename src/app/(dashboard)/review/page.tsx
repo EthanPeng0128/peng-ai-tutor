@@ -183,12 +183,8 @@ export default function ReviewPage() {
     const printWindow = window.open('', '_blank', 'width=1300,height=900')
     if (!printWindow) { alert('請允許彈出視窗以列印'); return }
     
-    // A4 橫向：297mm × 210mm（約 1123px × 794px @ 96dpi）
-    // 圖片：1240px × 877px
-    // 計算縮放比：min(1123/1240, 794/877) = min(0.905, 0.905) ≈ 0.9
-    
     printWindow.document.write(`
-      <html><head><title>列印</title>
+      <html><head><title>列印重點圖</title>
       <style>
         @page { 
           size: A4 landscape; 
@@ -201,37 +197,70 @@ export default function ReviewPage() {
         }
         html, body { 
           width: 100%;
-          height: 100%;
-          overflow: hidden;
-          background: white;
+          background: #f1f5f9;
         }
-        .scale-container {
-          position: absolute;
+        .toolbar {
+          position: sticky;
           top: 0;
-          left: 0;
+          background: #1e293b;
+          color: white;
+          padding: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          z-index: 100;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .toolbar h2 {
+          font-size: 16px;
+          margin: 0;
+          flex: 1;
+        }
+        .toolbar button {
+          padding: 10px 20px;
+          background: #a78bfa;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .toolbar button:hover { background: #8b6bf3; }
+        .scale-container {
           width: 1240px;
           height: 877px;
           transform-origin: top left;
           transform: scale(0.88);
+          margin: 20px auto;
+          background: white;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         }
         @media print { 
           html, body {
+            background: white !important;
             -webkit-print-color-adjust: exact !important; 
             print-color-adjust: exact !important;
-            color-adjust: exact !important;
           }
+          .toolbar { display: none !important; }
+          .scale-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            margin: 0 !important;
+            box-shadow: none !important;
+          }
+          @page { size: A4 landscape; margin: 0; }
         }
       </style>
       </head><body>
+        <div class="toolbar">
+          <h2>📄 列印預覽</h2>
+          <button onclick="window.print()">🖨 開始列印</button>
+          <button onclick="window.close()" style="background:#64748b">✕ 關閉</button>
+        </div>
         <div class="scale-container">${el.outerHTML}</div>
-        <script>
-          window.addEventListener('load', () => {
-            setTimeout(() => { 
-              window.print()
-              setTimeout(() => window.close(), 500)
-            }, 500)
-          })
-        <\/script>
       </body></html>
     `)
     printWindow.document.close()
