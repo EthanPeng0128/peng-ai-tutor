@@ -45,7 +45,7 @@ export default function TextbookPage() {
   async function loadData(id: string) {
     const [{ data: subs }, { data: books }] = await Promise.all([
       supabase.from('subjects').select('*').eq('child_id', id).order('sort_order'),
-      supabase.from('textbooks').select('*').eq('child_id', id).order('created_at', { ascending: false }),
+      supabase.from('textbooks').select('*').eq('child_id', id).order('created_at', { ascending: true }),
     ])
     setSubjects(subs ?? [])
     setTextbooks(books ?? [])
@@ -212,7 +212,7 @@ export default function TextbookPage() {
               </button>
 
               {isExpanded && (
-                <div style={{borderTop:'1px solid #f1f5f9'}}>
+                <div style={{borderTop:'1px solid #f1f5f9',maxHeight:'400px',overflowY:'auto',WebkitOverflowScrolling:'touch'}}>
                   {sBooks.length === 0 ? (
                     <div style={{padding:'16px',textAlign:'center',color:'#94a3b8',fontSize:'13px'}}>尚未上傳課文</div>
                   ) : (
@@ -225,6 +225,7 @@ export default function TextbookPage() {
                         <div style={{flex:1,minWidth:0}}>
                           <p style={{fontSize:'13px',color:'#1e293b',fontWeight:'500',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{book.lesson_number}：{book.title}</p>
                           <p style={{fontSize:'11px',color:'#94a3b8',margin:'2px 0 0'}}>{book.grade} · {book.semester}{book.sub_subject?` · ${book.sub_subject}`:''}</p>
+                          {book.created_at && <p style={{fontSize:'10px',color:'#cbd5e1',margin:'2px 0 0'}}>上傳時間：{new Date(book.created_at).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})}</p>}
                         </div>
                         <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
                           <div style={{width:'8px',height:'8px',borderRadius:'50%',background:book.status==='ready'?'#22c55e':'#f59e0b',flexShrink:0}}/>
