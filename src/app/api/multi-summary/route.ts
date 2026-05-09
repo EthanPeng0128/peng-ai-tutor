@@ -75,12 +75,21 @@ ${combinedContent}
 【核心目標】
 做一張 A4 橫向總整理圖，把這幾課所有「考試會考的點」「需要背的點」「容易混淆的點」「跨課可比較的點」全部塞進去。
 
-【強制規則】
-1. 整體尺寸：寬 1240px、高 877px（A4 橫向 √2:1 比例）
-2. 排版：grid 4 欄 × 4 列 = 共 16 個小卡片區塊（內容多就用滿，少就 4×3=12 格）
-3. 字體：標題 13~14px、內文 10~11px，行高 1.4
-4. 顏色：主色 ${colors.main}、淺底 ${colors.light}、深字 ${colors.dark}、強調色 ${colors.mid}
-5. 背景白色，卡片之間 gap 6px
+【強制規則 - 排版必遵守】
+1. 整體尺寸：固定 寬 1240px、高 877px（A4 橫向滿版，不可超出）
+2. 最外層 div 樣式必須：width:1240px;height:877px;padding:14px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;background:white;font-family:-apple-system,sans-serif
+3. 排版用 CSS grid，gap 8px，3 欄 × 3 列 = 9 格（讓字夠大）。如果內容真的很多才用 4×3=12 格
+4. 每張卡片內部用 padding:12px、box-sizing:border-box、border-radius:8px
+5. 字體必須夠大易讀：
+   - 卡片標題 16px (font-weight:700, margin-bottom:8px)
+   - 內文 14px (line-height:1.5, font-weight:500)
+   - 副標題 13px
+   - 條列項目間距 4~6px
+6. 顏色：主色 ${colors.main}、淺底 ${colors.light}、深字 ${colors.dark}、強調色 ${colors.mid}
+7. 卡片必須 overflow:hidden，文字優先簡潔，避免長句
+8. 絕對禁止：position:absolute 重疊文字、transform 推擠
+9. 內容寧可少而精，不要塞太多 → 字大才好讀
+10. 所有 li、div、p 都要 margin:0 ~ 4px，避免溢位
 
 【標題列】
 6. 第一張卡片是大標題列：${subjectName} 大範圍總整理 - ${lessonList}
