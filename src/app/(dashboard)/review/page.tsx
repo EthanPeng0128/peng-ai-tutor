@@ -112,8 +112,13 @@ export default function ReviewPage() {
         body: JSON.stringify({ textbookIds: Array.from(selectedIds), regenerate }),
       })
       const data = await res.json()
-      if (data.html) setMultiSummaryHtml(data.html)
-      else alert('生成失敗：\n' + JSON.stringify(data, null, 2))
+      if (data.html) {
+        setMultiSummaryHtml(data.html)
+        const { data: libData } = await supabase.from('summary_sheets').select('*').eq('child_id', childId).order('created_at', { ascending: false })
+        setSummaryLibrary(libData ?? [])
+      } else {
+        alert('生成失敗：\n' + JSON.stringify(data, null, 2))
+      }
     } catch (e: any) {
       alert('連線失敗：' + e.message)
     }
