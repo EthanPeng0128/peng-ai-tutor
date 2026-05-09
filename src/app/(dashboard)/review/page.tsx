@@ -444,7 +444,7 @@ export default function ReviewPage() {
                               <div key={tbId}>
                                 <button onClick={() => toggleTextbookExpand(tbId)}
                                   style={{ width: '100%', padding: '10px 14px 10px 30px', background: '#f8fafc', border: 'none', borderTop: '1px solid #e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <ChevronRight size={14} color="#64748b" style={{ transform: 'none', transition: 'transform 0.2s' }}/>
+                                  <ChevronRight size={14} color="#64748b" style={{ transform: tbExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}/>
                                   <div style={{ flex: 1, textAlign: 'left' }}>
                                     <p style={{ fontSize: '13px', fontWeight: 600, color: '#334155', margin: 0 }}>
                                       {tb ? `${tb.lesson_number} ${tb.title}` : '未知章節'}
