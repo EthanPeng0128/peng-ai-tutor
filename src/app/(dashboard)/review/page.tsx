@@ -16,6 +16,7 @@ export default function ReviewPage() {
   const [mode, setMode] = useState('fill')
   const [difficulty, setDifficulty] = useState('medium')
   const [count, setCount] = useState(10)
+  const [weakFocus, setWeakFocus] = useState(true)
   const [phase, setPhase] = useState<Phase>('select-subject')
   const [result, setResult] = useState<any>(null)
   const [answers, setAnswers] = useState<Record<number, string>>({})
@@ -295,11 +296,21 @@ export default function ReviewPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         content, mode, difficulty, count, grade, title,
-        textbooks: selectedTextbooks.map(t => ({
-          subject: t.subject_name,
-          lesson_number: t.lesson_number,
-          title: t.title,
-        })),
+        textbooks: selectedTextbooks.map(t => {
+          const wrongCount = wrongAnswers.filter(w => w.textbook_id === t.id).length
+          return {
+            id: t.id,
+            subject: t.subject_name,
+            lesson_number: t.lesson_number,
+            title: t.title,
+            wrongCount,  // 這課答錯過幾題
+          }
+        }),
+        weakFocus,
+        weakTopics: weakFocus ? wrongAnswers
+          .filter(w => selectedTextbooks.some(t => t.id === w.textbook_id))
+          .slice(0, 8)
+          .map(w => ({ question: w.question?.slice(0, 80), correct_answer: w.correct_answer })) : [],
       }),
     })
     const data = await res.json()
@@ -718,6 +729,29 @@ export default function ReviewPage() {
         <div style={{ marginBottom: '20px' }}>
           <p style={{ ...subTitleStyle, fontWeight: 600, marginBottom: '8px' }}>題數：<span style={{ color: subjectColor, fontWeight: 700 }}>{count}</span> 題</p>
           <input type="range" min={3} max={30} value={count} onChange={e => setCount(+e.target.value)} style={{ width: '100%', accentColor: subjectColor }}/>
+        </div>
+        
+        {wrongAnswers.length > 0 && (
+          <div style={{ ...cardStyle, padding: '16px', marginBottom: '16px' }}>
+            <p style={{ ...subTitleStyle, fontWeight: 600, marginBottom: '8px' }}>📊 弱點優先模式</p>
+            <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 10px' }}>
+              你目前有 {wrongAnswers.length} 題錯題，開啟後會針對弱點章節加倍出題
+            </p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setWeakFocus(false)}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: weakFocus ? '1.5px solid #e2e8f0' : `2px solid ${subjectColor}`, background: weakFocus ? 'white' : `${subjectColor}15`, color: weakFocus ? '#64748b' : subjectColor, fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                ⚪ 平均出題
+              </button>
+              <button onClick={() => setWeakFocus(true)}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: !weakFocus ? '1.5px solid #e2e8f0' : `2px solid ${subjectColor}`, background: !weakFocus ? 'white' : `${subjectColor}15`, color: !weakFocus ? '#64748b' : subjectColor, fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                🎯 弱點優先
+              </button>
+            </div>
+          </div>
+        )}
+        
+        <div style={{ display: 'none' }}>
+          <input style={{ display: 'none' }}/>
         </div>
         <button onClick={startQuiz} style={{ width: '100%', padding: '14px', borderRadius: '10px', background: subjectColor, color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}>
           開始複習 🚀
