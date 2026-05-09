@@ -75,21 +75,33 @@ ${combinedContent}
 【核心目標】
 做一張 A4 橫向總整理圖，把這幾課所有「考試會考的點」「需要背的點」「容易混淆的點」「跨課可比較的點」全部塞進去。
 
-【強制規則 - 排版必遵守】
-1. 整體尺寸：固定 寬 1240px、高 877px（A4 橫向滿版，不可超出）
-2. 最外層 div 樣式必須：width:1240px;height:877px;padding:14px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;background:white;font-family:-apple-system,sans-serif
-3. 排版用 CSS grid，gap 8px，3 欄 × 3 列 = 9 格（讓字夠大）。如果內容真的很多才用 4×3=12 格
-4. 每張卡片內部用 padding:12px、box-sizing:border-box、border-radius:8px
-5. 字體必須夠大易讀：
-   - 卡片標題 16px (font-weight:700, margin-bottom:8px)
-   - 內文 14px (line-height:1.5, font-weight:500)
-   - 副標題 13px
-   - 條列項目間距 4~6px
-6. 顏色：主色 ${colors.main}、淺底 ${colors.light}、深字 ${colors.dark}、強調色 ${colors.mid}
-7. 卡片必須 overflow:hidden，文字優先簡潔，避免長句
-8. 絕對禁止：position:absolute 重疊文字、transform 推擠
-9. 內容寧可少而精，不要塞太多 → 字大才好讀
-10. 所有 li、div、p 都要 margin:0 ~ 4px，避免溢位
+【強制規則 - 內容完整為最高優先】
+1. 整體尺寸：固定 寬 1240px、高 877px（A4 橫向滿版）
+2. 最外層 div：width:1240px;height:877px;padding:14px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;background:white;font-family:-apple-system,sans-serif
+
+3. 【最重要原則】內容完整不漏，內容多時自動縮小字體：
+   - 內容少（每卡片 ≤4 項）：標題 16px、內文 14px
+   - 內容中（每卡片 5~7 項）：標題 15px、內文 13px
+   - 內容多（每卡片 8~10 項）：標題 14px、內文 12px
+   - 內容超多（每卡片 >10 項）：標題 13px、內文 11px、line-height:1.3
+   重點：絕對不可截斷重要資訊，寧可縮小字體！
+
+4. 排版用 CSS grid，gap 8px：
+   - 內容少：3 欄 × 3 列 = 9 格
+   - 內容多：4 欄 × 3 列 = 12 格
+
+5. 每張卡片：padding:10px、box-sizing:border-box、border-radius:8px、overflow:hidden
+6. 每個項目間距 3~5px，line-height:1.4
+7. 顏色：主色 ${colors.main}、淺底 ${colors.light}、深字 ${colors.dark}、強調色 ${colors.mid}
+
+8. 內容檢查機制（生成前自我檢查）：
+   - 估算每張卡片的字數
+   - 如預估超出卡片高度 → 立刻調小字體（一次降 1~2px）
+   - 寧可字小到 10px，也不可省略重要知識點
+   - 條列用「→」「、」連接同類項目，省空間
+
+9. 絕對禁止：position:absolute 重疊文字、transform 推擠
+10. 重要關鍵字仍要 <strong style="color:${colors.mid}"> 強調
 
 【標題列】
 6. 第一張卡片是大標題列：${subjectName} 大範圍總整理 - ${lessonList}
