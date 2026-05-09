@@ -40,9 +40,16 @@ export default function DashboardPage() {
   return (
     <div style={{padding:'16px',display:'flex',flexDirection:'column',gap:'14px',paddingBottom:'24px',background:'#f8fafc'}}>
       {/* Greeting */}
-      <div style={{paddingTop:'4px'}}>
-        <p style={{color:'#64748b',fontSize:'13px',marginBottom:'4px'}}>{today.getMonth()+1}月{today.getDate()}日 · 今天也加油！</p>
-        <h1 style={{fontSize:'26px',fontWeight:'800',color:'#0f172a'}}>{child?.avatar} 嗨，{child?.name}！</h1>
+      <div style={{paddingTop:'4px',display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'12px'}}>
+        <div style={{flex:1,minWidth:0}}>
+          <p style={{color:'#64748b',fontSize:'13px',marginBottom:'4px'}}>{today.getMonth()+1}月{today.getDate()}日 · 今天也加油！</p>
+          <h1 style={{fontSize:'26px',fontWeight:'800',color:'#0f172a',margin:0}}>{child?.avatar} 嗨，{child?.name}！</h1>
+        </div>
+        <Link href="/ai-usage" style={{flexShrink:0}}>
+          <button style={{width:'44px',height:'44px',borderRadius:'50%',border:'1px solid #e2e8f0',background:'white',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',boxShadow:'0 1px 3px rgba(0,0,0,0.05)'}} title="AI 用量">
+            💰
+          </button>
+        </Link>
       </div>
 
       {/* Stats */}

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { trackAIUsage } from '@/lib/ai-tracker'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 
@@ -134,6 +135,8 @@ ${textbook.content}
       max_tokens: 8000,
       messages: [{ role: 'user', content: prompt }],
     })
+
+    await trackAIUsage({ apiName: 'summary-sheet', inputTokens: message.usage?.input_tokens || 0, outputTokens: message.usage?.output_tokens || 0, childId: textbook.child_id })
 
     let html = ''
     for (const block of message.content) {

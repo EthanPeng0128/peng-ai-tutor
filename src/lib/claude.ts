@@ -1,3 +1,4 @@
+import { trackAIUsage } from './ai-tracker'
 import Anthropic from "@anthropic-ai/sdk"
 export const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 export async function chatWithTutor(params: { messages: Array<{role:"user"|"assistant";content:string}>; mode: string; childName: string; childGrade: string }) {
@@ -7,6 +8,7 @@ export async function chatWithTutor(params: { messages: Array<{role:"user"|"assi
     teacher: "你是彭家AI家教老師，幫助"+params.childGrade+"的"+params.childName+"深度學習。深入解釋多角度。繁體中文。",
   }
   const r = await anthropic.messages.create({ model:"claude-opus-4-5-20251101", max_tokens:2048, system:sys[params.mode]??sys.child, messages:params.messages })
+  await trackAIUsage({ apiName: "chat", inputTokens: r.usage?.input_tokens || 0, outputTokens: r.usage?.output_tokens || 0 })
   return r.content[0].type==="text"?r.content[0].text:""
 }
 export async function generateQuiz(p: { content:string; mode:string; difficulty:string; count:number; grade:string; title:string; textbooks?: Array<{id?:string;subject:string;lesson_number:string;title:string;wrongCount?:number}>; weakFocus?:boolean; weakTopics?:Array<{question:string;correct_answer:string}> }) {
@@ -42,6 +44,7 @@ export async function generateQuiz(p: { content:string; mode:string; difficulty:
   const r = await anthropic.messages.create({ model:"claude-opus-4-5-20251101", max_tokens:4096,
     messages:[{role:"user",content:"台灣國中家教幫"+p.grade+"複習「"+p.title+"」"+lessonList+weakHint+weakTopicsHint+"\n\n課文:\n"+p.content.slice(0,6000)+"\n\n"+mp[p.mode]+"\n只回傳JSON。"}]
   })
+  await trackAIUsage({ apiName: "quiz", inputTokens: r.usage?.input_tokens || 0, outputTokens: r.usage?.output_tokens || 0 })
   const t = r.content[0].type==="text"?r.content[0].text:""
   try{return JSON.parse(t)}catch{const m=t.match(/\{[\s\S]*\}/);return m?JSON.parse(m[0]):null}
 }
@@ -49,6 +52,7 @@ export async function analyzeExam(b64:string, mime:string) {
   const r = await anthropic.messages.create({ model:"claude-opus-4-5-20251101", max_tokens:4096,
     messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime as any,data:b64}},{type:"text",text:"分析考卷弱點。JSON:{score,weakPoints:[{topic,level:red|yellow|green,detail}],suggestions:[]}只回傳JSON。"}]}]
   })
+  await trackAIUsage({ apiName: "exam-analysis", inputTokens: r.usage?.input_tokens || 0, outputTokens: r.usage?.output_tokens || 0 })
   const t=r.content[0].type==="text"?r.content[0].text:""
   try{return JSON.parse(t)}catch{const m=t.match(/\{[\s\S]*\}/);return m?JSON.parse(m[0]):null}
 }
@@ -56,5 +60,6 @@ export async function parseTextbookImage(b64:string,mime:string){
   const r=await anthropic.messages.create({model:"claude-opus-4-5-20251101",max_tokens:8192,
     messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime as any,data:b64}},{type:"text",text:"完整辨識課本圖片文字，保留段落，Markdown格式輸出。只輸出文字。"}]}]
   })
+  await trackAIUsage({ apiName: "parse-textbook", inputTokens: r.usage?.input_tokens || 0, outputTokens: r.usage?.output_tokens || 0 })
   return r.content[0].type==="text"?r.content[0].text:""
 }
