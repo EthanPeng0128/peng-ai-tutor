@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     }
 
     const { error } = await supabase.from('summary_sheets').insert({
-      textbook_id: textbookId || 'manual-save-' + Date.now(),
+      textbook_id: null,  // 大範圍整理沒有單一 textbook_id
       child_id: childId,
       html_content: htmlContent,
       subject_color: subjectColor || '#a78bfa',

@@ -146,7 +146,6 @@ export default function ReviewPage() {
           isMulti: true,
           textbookCount: selectedIds.size,
           subjectName: multiSubjectName,
-          textbookId: multiCacheKey,
         }),
       })
       const data = await res.json()
