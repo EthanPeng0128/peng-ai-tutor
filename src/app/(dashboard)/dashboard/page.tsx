@@ -29,11 +29,6 @@ export default function DashboardPage() {
     setLoading(false)
   }
 
-  const subjectStats = ['國語','英文','數學','理化','社會'].map(name => {
-    const s = sessions.filter(s => s.subject_name===name && s.score!=null)
-    return { name, avg: s.length>0 ? Math.round(s.reduce((a:number,x:any)=>a+x.score,0)/s.length) : null }
-  })
-
   const today = new Date()
 
   if (loading) return (
@@ -64,27 +59,7 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
-
-      {/* Subject bars */}
-      <div style={S.card}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'14px'}}>
-          <h2 style={{fontSize:'15px',fontWeight:'700',color:'#0f172a'}}>各科表現</h2>
-          <Link href="/progress" style={{fontSize:'12px',color:'#2563eb',textDecoration:'none',fontWeight:'500'}}>查看詳情 →</Link>
-        </div>
-        {subjectStats.map(s=>(
-          <div key={s.name} style={{marginBottom:'10px'}}>
-            <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
-              <span style={{fontSize:'13px',color:'#334155',fontWeight:'500'}}>{getSubjectEmoji(s.name)} {s.name}</span>
-              <span style={{fontSize:'12px',color:'#64748b'}}>{s.avg!=null?`${s.avg}分`:'--'}</span>
-            </div>
-            <div style={{height:'8px',background:'#f1f5f9',borderRadius:'4px',overflow:'hidden'}}>
-              <div style={{height:'100%',borderRadius:'4px',width:`${s.avg??30}%`,backgroundColor:getSubjectColor(s.name),transition:'width 0.7s'}}/>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Quick actions */}
+{/* Quick actions */}
       <div>
         <h2 style={{fontSize:'13px',fontWeight:'600',color:'#64748b',marginBottom:'10px',textTransform:'uppercase',letterSpacing:'0.05em'}}>快速開始</h2>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>

@@ -9,8 +9,6 @@ const NAV = [
   { href: '/textbook',   label: '課本', Icon: BookOpen },
   { href: '/review',     label: '複習', Icon: PenLine },
   { href: '/analysis',   label: '考卷', Icon: Camera },
-  { href: '/study-plan', label: '計劃', Icon: CalendarDays },
-  { href: '/progress',   label: '進度', Icon: BarChart2 },
 ]
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
