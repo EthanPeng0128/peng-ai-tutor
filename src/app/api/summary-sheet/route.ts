@@ -71,12 +71,16 @@ ${textbook.content}
 【核心目標】
 做一張 16:9 整理圖，把這課所有「考試會考的點」「需要背的點」「容易混淆的點」「老師會強調的點」全部塞進去。學生看完這一張，就不用再看課本。
 
-【強制規則 — 必遵守】
-1. 整體尺寸：寬 1240px，高 697px（16:9），用 inline style 寫死
-2. 排版：grid 4 欄 × 3 列 = 共 12 個小卡片區塊（如果課文短，可改為 3×3=9 格）
-3. 字體：標題 13px、內文 10~11px，行高 1.4
-4. 顏色：主色 ${colors.main}、淺底 ${colors.light}、深字 ${colors.dark}、強調色 ${colors.mid}
-5. 整體背景白色或極淺色，卡片之間 gap 6px
+【強制規則 - 排版必遵守】
+1. 整體尺寸：固定 寬 1240px、高 877px（A4 橫向滿版，不可超出）
+2. 最外層 div 樣式必須：width:1240px;height:877px;padding:12px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;background:white
+3. 排版用 CSS grid，gap 6px，4 欄 × 3 列 = 12 格
+4. 每張卡片內部用 padding:8px、box-sizing:border-box，文字必須完整顯示在卡片內
+5. 字體：卡片標題 12px (font-weight:700)、內文 10px、行高 1.35
+6. 顏色：主色 ${colors.main}、淺底 ${colors.light}、深字 ${colors.dark}、強調色 ${colors.mid}
+7. 卡片必須 overflow:hidden，內容超出時用 line-height 控制不可重疊
+8. 絕對禁止：position:absolute 不可重疊文字、不可使用 transform 推擠
+9. 所有 li、div、p 都要 margin:0、padding 適中，避免溢位
 
 【內容要求 — 越多越好】
 6. 把課文裡所有專有名詞、定義、年代、人物、地點、特徵、原因、結果、比較項目、口訣……全部抓出來
@@ -125,14 +129,19 @@ ${textbook.content}
     }
 
     stage = 'save-result'
+    const defaultTitle = `${textbook.subject_name} ${textbook.lesson_number} ${textbook.title}`
     await supabase.from('summary_sheets').insert({
       textbook_id: textbookId,
       child_id: textbook.child_id,
       html_content: html,
       subject_color: colors.main,
+      title: defaultTitle,
+      is_multi: false,
+      textbook_count: 1,
+      subject_name: textbook.subject_name,
     })
 
-    return NextResponse.json({ html, cached: false })
+    return NextResponse.json({ html, cached: false, title: defaultTitle })
   } catch (e: any) {
     return NextResponse.json({ error: '伺服器錯誤', stage, debug: { msg: e.message, name: e.name } }, { status: 500 })
   }

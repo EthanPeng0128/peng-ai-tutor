@@ -23,13 +23,17 @@ export default function ReviewPage() {
   const [timer, setTimer] = useState(0)
   const [timerActive, setTimerActive] = useState(false)
   const [wrongOnly, setWrongOnly] = useState(false)
-  const [tab, setTab] = useState<'textbook'|'wrong'>('textbook')
+  const [tab, setTab] = useState<'textbook'|'wrong'|'library'>('textbook')
   const [multiLoading, setMultiLoading] = useState(false)
   const [multiSummaryHtml, setMultiSummaryHtml] = useState('')
   const [wrongSavedMsg, setWrongSavedMsg] = useState('')
   const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set())
   const [expandedTextbooks, setExpandedTextbooks] = useState<Set<string>>(new Set())
   const [savedSession, setSavedSession] = useState(false)
+  const [summaryLibrary, setSummaryLibrary] = useState<any[]>([])
+  const [editingSummary, setEditingSummary] = useState<any>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [viewingSummary, setViewingSummary] = useState<any>(null)
 
   useEffect(() => {
     const id = localStorage.getItem('selectedChildId') ?? ''
@@ -37,6 +41,7 @@ export default function ReviewPage() {
     if (id) {
       supabase.from('textbooks').select('*').eq('child_id', id).eq('status', 'ready').then(({ data }) => setTextbooks(data ?? []))
       supabase.from('wrong_answers').select('*').eq('child_id', id).eq('mastered', false).order('created_at', { ascending: false }).then(({ data }) => setWrongAnswers(data ?? []))
+      supabase.from('summary_sheets').select('*').eq('child_id', id).order('created_at', { ascending: false }).then(({ data }) => setSummaryLibrary(data ?? []))
     }
   }, [])
 
@@ -196,6 +201,29 @@ export default function ReviewPage() {
     setWrongAnswers(prev => prev.filter(w => w.id !== id))
   }
 
+  async function reloadLibrary() {
+    const { data } = await supabase.from('summary_sheets').select('*').eq('child_id', childId).order('created_at', { ascending: false })
+    setSummaryLibrary(data ?? [])
+  }
+
+  function openEditTitle(item: any) {
+    setEditingSummary(item)
+    setEditTitle(item.title || '未命名整理圖')
+  }
+
+  async function saveTitle() {
+    if (!editingSummary || !editTitle.trim()) return
+    await supabase.from('summary_sheets').update({ title: editTitle.trim() }).eq('id', editingSummary.id)
+    setEditingSummary(null)
+    reloadLibrary()
+  }
+
+  async function deleteSummary(id: string) {
+    if (!confirm('確定要刪除這份重點整理圖嗎？\n刪除後無法復原。')) return
+    await supabase.from('summary_sheets').delete().eq('id', id)
+    reloadLibrary()
+  }
+
   function formatTime(s: number) { return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}` }
 
   function reset() {
@@ -210,6 +238,7 @@ export default function ReviewPage() {
   const backBtnStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', color: '#1e293b', fontWeight: 600, cursor: 'pointer' }
 
   if (phase === 'select-subject') return (
+    <>
     <div style={containerStyle}>
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
         <button onClick={() => setTab('textbook')}
@@ -219,6 +248,10 @@ export default function ReviewPage() {
         <button onClick={() => setTab('wrong')}
           style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', background: tab === 'wrong' ? '#ef4444' : 'white', color: tab === 'wrong' ? 'white' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: tab === 'wrong' ? '0 2px 6px rgba(239,68,68,0.3)' : '0 1px 3px rgba(0,0,0,0.05)' }}>
           <AlertCircle size={14}/> 錯題重練 {wrongAnswers.length > 0 && <span style={{ background: 'rgba(255,255,255,0.3)', padding: '0 6px', borderRadius: '10px', fontSize: '11px' }}>{wrongAnswers.length}</span>}
+        </button>
+        <button onClick={() => setTab('library')}
+          style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', background: tab === 'library' ? '#a78bfa' : 'white', color: tab === 'library' ? 'white' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: tab === 'library' ? '0 2px 6px rgba(167,139,250,0.3)' : '0 1px 3px rgba(0,0,0,0.05)' }}>
+          📊 圖庫 {summaryLibrary.length > 0 && <span style={{ background: 'rgba(255,255,255,0.3)', padding: '0 6px', borderRadius: '10px', fontSize: '11px' }}>{summaryLibrary.length}</span>}
         </button>
       </div>
 
@@ -243,6 +276,42 @@ export default function ReviewPage() {
                   </button>
                 )
               })}
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === 'library' && (
+        <>
+          <p style={{ ...subTitleStyle, marginBottom: '12px', fontWeight: 600 }}>📊 我的重點圖庫（{summaryLibrary.length} 張）</p>
+          {summaryLibrary.length === 0 ? (
+            <div style={{ ...cardStyle, padding: '32px', textAlign: 'center' }}>
+              <p style={{ fontSize: '36px', margin: '0 0 8px' }}>📊</p>
+              <p style={{ ...titleStyle }}>還沒有重點圖</p>
+              <p style={{ ...subTitleStyle, marginTop: '6px' }}>選課文後生成「大範圍整理」就會自動存到這裡</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {summaryLibrary.map(s => (
+                <div key={s.id} style={{ ...cardStyle, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div onClick={() => setViewingSummary(s)} style={{ cursor: 'pointer', flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {s.is_multi ? '📊' : '📋'} {s.title || '未命名整理圖'}
+                    </p>
+                    <p style={{ fontSize: '11px', color: '#94a3b8', margin: '3px 0 0' }}>
+                      {s.subject_name && `${s.subject_name} · `}
+                      {s.is_multi ? `${s.textbook_count || 0} 課` : '單課'} · 
+                      {' '}{new Date(s.created_at).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}
+                    </p>
+                  </div>
+                  <button onClick={() => openEditTitle(s)} style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid #e0f2fe', background: '#f0f9ff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    ✏️
+                  </button>
+                  <button onClick={() => deleteSummary(s.id)} style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fff5f5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontSize: '14px' }}>
+                    🗑
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </>
@@ -322,6 +391,32 @@ export default function ReviewPage() {
         </>
       )}
     </div>
+    {editingSummary && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'flex-end' }} onClick={() => setEditingSummary(null)}>
+        <div style={{ width: '100%', maxWidth: '480px', margin: '0 auto', background: 'white', borderRadius: '24px 24px 0 0', padding: '24px' }} onClick={e => e.stopPropagation()}>
+          <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>✏️ 編輯重點圖名稱</h3>
+          <input value={editTitle} onChange={e => setEditTitle(e.target.value)} autoFocus
+            style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #cbd5e1', borderRadius: '10px', fontSize: '15px', color: '#1e293b', boxSizing: 'border-box', marginBottom: '16px' }}
+            placeholder="輸入新名稱..."/>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => setEditingSummary(null)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1.5px solid #e2e8f0', background: 'white', color: '#64748b', fontSize: '14px', cursor: 'pointer', fontWeight: 500 }}>取消</button>
+            <button onClick={saveTitle} disabled={!editTitle.trim()} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: editTitle.trim() ? '#a78bfa' : '#cbd5e1', color: 'white', fontSize: '14px', cursor: editTitle.trim() ? 'pointer' : 'not-allowed', fontWeight: 600 }}>儲存</button>
+          </div>
+        </div>
+      </div>
+    )}
+    {viewingSummary && (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#000', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: '20px' }}>
+        <button onClick={() => setViewingSummary(null)} style={{ position: 'fixed', top: '12px', right: '12px', width: '44px', height: '44px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.95)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', fontSize: '20px', fontWeight: 700 }}>✕</button>
+        <div style={{ position: 'fixed', top: '12px', left: '12px', padding: '8px 16px', borderRadius: '20px', background: 'rgba(255,255,255,0.95)', zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.3)', fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>
+          {viewingSummary.title || '未命名'}
+        </div>
+        <div style={{ width: '95vw', maxWidth: '1240px' }}>
+          <div style={{ width: '100%', aspectRatio: '1240/877', background: 'white', borderRadius: '8px', overflow: 'hidden' }} dangerouslySetInnerHTML={{ __html: viewingSummary.html_content }}/>
+        </div>
+      </div>
+    )}
+    </>
   )
 
   if (phase === 'select-textbooks') {

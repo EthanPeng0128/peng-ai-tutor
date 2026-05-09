@@ -124,14 +124,19 @@ ${combinedContent}
     }
 
     stage = 'save-result'
+    const defaultTitle = `${subjectName} 大範圍整理（${textbooks.length}課）`
     await supabase.from('summary_sheets').insert({
       textbook_id: cacheKey,
       child_id: childId,
       html_content: html,
       subject_color: colors.main,
+      title: defaultTitle,
+      is_multi: true,
+      textbook_count: textbooks.length,
+      subject_name: subjectName,
     })
 
-    return NextResponse.json({ html, cached: false, count: textbooks.length })
+    return NextResponse.json({ html, cached: false, count: textbooks.length, title: defaultTitle })
   } catch (e: any) {
     return NextResponse.json({ error: '伺服器錯誤', stage, debug: { msg: e.message } }, { status: 500 })
   }

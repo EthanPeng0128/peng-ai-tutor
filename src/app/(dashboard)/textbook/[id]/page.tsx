@@ -254,7 +254,7 @@ export default function TextbookReaderPage() {
                   </button>
                 </div>
                 <div style={{width:'100%',overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
-                  <div ref={summaryRef} style={{width:'1240px',aspectRatio:'1240/697',background:'white',borderRadius:'14px',padding:'8px',boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}} dangerouslySetInnerHTML={{__html: summaryHtml}}/>
+                  <div ref={summaryRef} style={{width:'1240px',aspectRatio:'1240/877',background:'white',borderRadius:'14px',padding:'8px',boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}} dangerouslySetInnerHTML={{__html: summaryHtml}}/>
                 </div>
                 {isMobile && (
                   <p style={{fontSize:'12px',color:'#64748b',textAlign:'center',marginTop:'8px'}}>
@@ -275,7 +275,7 @@ export default function TextbookReaderPage() {
           <X size={22}/>
         </button>
         <div style={{transform:isMobile?'rotate(90deg)':'none',transformOrigin:'center center',width:isMobile?'100vh':'95vw',maxWidth:'1240px'}}>
-          <div style={{width:'100%',aspectRatio:'1240/697',background:'white',borderRadius:'8px',overflow:'hidden'}} dangerouslySetInnerHTML={{__html: summaryHtml}}/>
+          <div style={{width:'100%',aspectRatio:'1240/877',background:'white',borderRadius:'8px',overflow:'hidden'}} dangerouslySetInnerHTML={{__html: summaryHtml}}/>
         </div>
       </div>
     )}
