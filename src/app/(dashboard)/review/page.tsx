@@ -185,11 +185,49 @@ export default function ReviewPage() {
     printWindow.document.write(`
       <html><head><title>列印</title>
       <style>
-        @page { size: A4 landscape; margin: 0; }
-        body { margin: 0; padding: 0; }
-        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+        @page { 
+          size: A4 landscape; 
+          margin: 0;
+        }
+        html, body { 
+          margin: 0; 
+          padding: 0; 
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+        }
+        .print-wrap {
+          width: 100vw;
+          height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          page-break-inside: avoid;
+          page-break-after: avoid;
+          overflow: hidden;
+        }
+        .print-wrap > div {
+          page-break-inside: avoid !important;
+          page-break-after: avoid !important;
+          break-inside: avoid !important;
+          transform-origin: center center;
+          /* 自動縮放：1240px → 容器最大 100vw */
+          width: 1240px;
+          height: 877px;
+          transform: scale(min(calc(100vw / 1240), calc(100vh / 877)));
+        }
+        @media print { 
+          body { 
+            -webkit-print-color-adjust: exact; 
+            print-color-adjust: exact;
+            color-adjust: exact;
+          }
+          * {
+            page-break-inside: avoid !important;
+          }
+        }
       </style>
-      </head><body>${el.outerHTML}<script>setTimeout(() => { window.print(); window.close() }, 500)</script></body></html>
+      </head><body><div class="print-wrap">${el.outerHTML}</div><script>setTimeout(() => { window.print(); setTimeout(() => window.close(), 500) }, 800)</script></body></html>
     `)
     printWindow.document.close()
   }
