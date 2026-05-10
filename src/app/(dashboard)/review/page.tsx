@@ -324,28 +324,38 @@ export default function ReviewPage() {
     if (mode === 'exam') setTimerActive(true)
     
     // 自動存入題庫
+    console.log('[save-quiz] 檢查條件:', { hasData: !!data, hasQuestions: !!data?.questions, hasItems: !!data?.items, childId, selectedSubject })
     if (data && (data.questions || data.items)) {
       try {
+        const payload = {
+          childId,
+          title: `${selectedSubject || '題目'} ${selectedTextbooks.length === 1 ? (selectedTextbooks[0]?.title || '') : `${selectedTextbooks.length} 課`} ${mode === 'fill' ? '填空' : mode === 'exam' ? '模擬考' : '題目'}`,
+          subjectName: selectedSubject || '',
+          textbookCount: selectedTextbooks.length,
+          mode,
+          difficulty,
+          questions: data.questions || data.items || [],
+        }
+        console.log('[save-quiz] 送出:', payload)
         const saveRes = await fetch('/api/save-quiz-set', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            childId,
-            title: `${selectedSubject} ${selectedTextbooks.length === 1 ? selectedTextbooks[0].title : `${selectedTextbooks.length} 課`} ${mode === 'fill' ? '填空' : mode === 'exam' ? '模擬考' : '題目'}`,
-            subjectName: selectedSubject,
-            textbookCount: selectedTextbooks.length,
-            mode,
-            difficulty,
-            questions: data.questions || data.items || [],
-          }),
+          body: JSON.stringify(payload),
         })
         const saveData = await saveRes.json()
+        console.log('[save-quiz] 回應:', saveData, 'status:', saveRes.status)
         if (saveData.saved && saveData.id) {
           setCurrentQuizSetId(saveData.id)
+          console.log('[save-quiz] ✅ 成功儲存，id:', saveData.id)
+        } else {
+          alert('題庫儲存失敗：' + (saveData.error || '未知') + (saveData.detail ? '\n' + saveData.detail : ''))
         }
-      } catch (e) {
-        console.error('儲存題庫失敗', e)
+      } catch (e: any) {
+        console.error('[save-quiz] 例外:', e)
+        alert('題庫儲存例外：' + e.message)
       }
+    } else {
+      console.warn('[save-quiz] 條件不符，沒呼叫 API')
     }
   }
 
