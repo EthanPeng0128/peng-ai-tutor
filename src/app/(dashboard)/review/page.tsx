@@ -25,7 +25,7 @@ export default function ReviewPage() {
   const [timer, setTimer] = useState(0)
   const [timerActive, setTimerActive] = useState(false)
   const [wrongOnly, setWrongOnly] = useState(false)
-  const [tab, setTab] = useState<'textbook'|'wrong'|'library'>('textbook')
+  const [tab, setTab] = useState<'textbook'|'wrong'|'library'|'quizlib'>('textbook')
   const [multiLoading, setMultiLoading] = useState(false)
   const [multiSummaryHtml, setMultiSummaryHtml] = useState('')
   const [multiSubjectName, setMultiSubjectName] = useState('')
@@ -41,6 +41,8 @@ export default function ReviewPage() {
   const [editingSummary, setEditingSummary] = useState<any>(null)
   const [editTitle, setEditTitle] = useState('')
   const [viewingSummary, setViewingSummary] = useState<any>(null)
+  const [quizSets, setQuizSets] = useState<any[]>([])
+  const [currentQuizSetId, setCurrentQuizSetId] = useState<string|null>(null)
 
   useEffect(() => {
     const id = localStorage.getItem('selectedChildId') ?? ''
@@ -49,6 +51,7 @@ export default function ReviewPage() {
       supabase.from('textbooks').select('*').eq('child_id', id).eq('status', 'ready').then(({ data }) => setTextbooks(data ?? []))
       supabase.from('wrong_answers').select('*').eq('child_id', id).eq('mastered', false).order('created_at', { ascending: false }).then(({ data }) => setWrongAnswers(data ?? []))
       supabase.from('summary_sheets').select('*').eq('child_id', id).order('created_at', { ascending: false }).then(({ data }) => setSummaryLibrary(data ?? []))
+      supabase.from('quiz_sets').select('*, quiz_attempts(score, total, correct_rate, created_at)').eq('child_id', id).order('created_at', { ascending: false }).then(({ data }) => setQuizSets(data ?? []))
     }
   }, [])
 
@@ -317,6 +320,31 @@ export default function ReviewPage() {
     setResult(data)
     setPhase('result')
     if (mode === 'exam') setTimerActive(true)
+    
+    // 自動存入題庫
+    if (data && (data.questions || data.items)) {
+      try {
+        const saveRes = await fetch('/api/save-quiz-set', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            childId,
+            title: `${selectedSubject} ${selectedTextbooks.length === 1 ? selectedTextbooks[0].title : `${selectedTextbooks.length} 課`} ${mode === 'fill' ? '填空' : mode === 'exam' ? '模擬考' : '題目'}`,
+            subjectName: selectedSubject,
+            textbookCount: selectedTextbooks.length,
+            mode,
+            difficulty,
+            questions: data.questions || data.items || [],
+          }),
+        })
+        const saveData = await saveRes.json()
+        if (saveData.saved && saveData.id) {
+          setCurrentQuizSetId(saveData.id)
+        }
+      } catch (e) {
+        console.error('儲存題庫失敗', e)
+      }
+    }
   }
 
   async function checkAnswers() {
@@ -428,6 +456,10 @@ export default function ReviewPage() {
           style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', background: tab === 'library' ? '#a78bfa' : 'white', color: tab === 'library' ? 'white' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: tab === 'library' ? '0 2px 6px rgba(167,139,250,0.3)' : '0 1px 3px rgba(0,0,0,0.05)' }}>
           📊 圖庫 {summaryLibrary.length > 0 && <span style={{ background: 'rgba(255,255,255,0.3)', padding: '0 6px', borderRadius: '10px', fontSize: '11px' }}>{summaryLibrary.length}</span>}
         </button>
+        <button onClick={() => setTab('quizlib')}
+          style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', background: tab === 'quizlib' ? '#10b981' : 'white', color: tab === 'quizlib' ? 'white' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: tab === 'quizlib' ? '0 2px 6px rgba(16,185,129,0.3)' : '0 1px 3px rgba(0,0,0,0.05)' }}>
+          📝 題庫 {quizSets.length > 0 && <span style={{ background: 'rgba(255,255,255,0.3)', padding: '0 6px', borderRadius: '10px', fontSize: '11px' }}>{quizSets.length}</span>}
+        </button>
       </div>
 
       {tab === 'textbook' && (
@@ -449,6 +481,82 @@ export default function ReviewPage() {
                     <div style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '4px' }}>{s}</div>
                     <div style={{ fontSize: '12px', color: '#64748b' }}>{subjectCounts[s]} 課</div>
                   </button>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === 'quizlib' && (
+        <>
+          <p style={{ ...subTitleStyle, marginBottom: '12px', fontWeight: 600 }}>📝 我的題庫（{quizSets.length} 套）</p>
+          {quizSets.length === 0 ? (
+            <div style={{ ...cardStyle, padding: '32px', textAlign: 'center' }}>
+              <p style={{ fontSize: '36px', margin: '0 0 8px' }}>📝</p>
+              <p style={{ ...titleStyle }}>還沒有題庫</p>
+              <p style={{ ...subTitleStyle, marginTop: '6px' }}>出題後會自動存到這裡，可以重複練習不花錢！</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {quizSets.map(qs => {
+                const attempts = qs.quiz_attempts || []
+                const attemptCount = attempts.length
+                const avgRate = attemptCount > 0 ? attempts.reduce((sum: number, a: any) => sum + Number(a.correct_rate || 0), 0) / attemptCount : 0
+                const lastAttempt = attempts[0]
+                return (
+                  <div key={qs.id} style={{ ...cardStyle, padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          📋 {qs.title}
+                        </p>
+                        <p style={{ fontSize: '11px', color: '#94a3b8', margin: '3px 0 0' }}>
+                          {qs.total_count} 題 · {qs.mode === 'fill' ? '填空' : qs.mode === 'exam' ? '模擬考' : qs.mode} · {new Date(qs.created_at).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}
+                        </p>
+                      </div>
+                      <button onClick={async () => {
+                          if (!confirm('確定刪除這套題目嗎？歷次成績紀錄也會一併刪除！')) return
+                          await supabase.from('quiz_sets').delete().eq('id', qs.id)
+                          const { data } = await supabase.from('quiz_sets').select('*, quiz_attempts(score, total, correct_rate, created_at)').eq('child_id', childId).order('created_at', { ascending: false })
+                          setQuizSets(data ?? [])
+                        }}
+                        style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fff5f5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontSize: '14px' }}>
+                        🗑
+                      </button>
+                    </div>
+                    {attemptCount > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', background: '#f0fdf4', borderRadius: '8px', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '11px', color: '#166534', fontWeight: 600 }}>📊 重考 {attemptCount} 次</span>
+                        <span style={{ fontSize: '11px', color: '#166534' }}>·</span>
+                        <span style={{ fontSize: '11px', color: '#166534', fontWeight: 600 }}>平均 {avgRate.toFixed(0)}%</span>
+                        {lastAttempt && (
+                          <>
+                            <span style={{ fontSize: '11px', color: '#166534' }}>·</span>
+                            <span style={{ fontSize: '11px', color: '#166534', fontWeight: 600 }}>最近 {Number(lastAttempt.correct_rate).toFixed(0)}%</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    <button onClick={() => {
+                        setResult({ questions: qs.questions })
+                        setMode(qs.mode || 'exam')
+                        setDifficulty(qs.difficulty || 'medium')
+                        setCount(qs.total_count)
+                        setSelectedSubject(qs.subject_name || '')
+                        setCurrentQuizSetId(qs.id)
+                        setAnswers({})
+                        setChecked(false)
+                        setScore(0)
+                        setTimer(0)
+                        setSavedSession(false)
+                        setPhase('result')
+                        if (qs.mode === 'exam') setTimerActive(true)
+                      }}
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', background: '#10b981', color: 'white', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+                      ▶ 重新練習（不花錢！）
+                    </button>
+                  </div>
                 )
               })}
             </div>
