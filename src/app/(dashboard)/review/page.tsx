@@ -405,10 +405,7 @@ export default function ReviewPage() {
       setSummaryLoading(true)
       try {
         const fullTextbooks = textbooks.filter(t => selectedIds.has(t.id))
-        const courseContent = fullTextbooks.map(t => `=== ${t.subject_name} ${t.lesson_number}：${t.title} ===
-${t.content || ''}`).join('
-
-').slice(0, 6000)
+        const courseContent = fullTextbooks.map(t => `=== ${t.subject_name} ${t.lesson_number}：${t.title} ===\n${t.content || ''}`).join('\n\n').slice(0, 6000)
         console.log('[exam-summary] content 長度:', courseContent.length)
         const sumRes = await fetch('/api/exam-summary', {
           method: 'POST',
