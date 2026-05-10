@@ -68,8 +68,7 @@ export default function ReviewPage() {
     subjectCounts[t.subject_name] = (subjectCounts[t.subject_name] || 0) + 1
   })
 
-  const SUBJECTS = ['國語', '英文', '數學', '理化', '社會']
-  const subjectsWithData = SUBJECTS.filter(s => subjectCounts[s] > 0)
+  const subjectsWithData = Array.from(new Set(textbooks.map(t => t.subject_name))).filter(Boolean) as string[]
   const filteredTextbooks = textbooks.filter(t => t.subject_name === selectedSubject)
   const selectedTextbooks = textbooks.filter(t => selectedIds.has(t.id))
 
