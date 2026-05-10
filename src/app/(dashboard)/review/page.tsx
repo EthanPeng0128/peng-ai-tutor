@@ -422,8 +422,7 @@ export default function ReviewPage() {
         if (sumData.summary) {
           setExamSummary(sumData.summary)
         } else if (sumData.error) {
-          alert('AI 分析失敗：' + sumData.error + (sumData.detail ? '
-' + sumData.detail : ''))
+          alert('AI 分析失敗：' + sumData.error + (sumData.detail ? '\n' + sumData.detail : ''))
         }
       } catch (e: any) {
         console.error('觀念總結失敗', e)
