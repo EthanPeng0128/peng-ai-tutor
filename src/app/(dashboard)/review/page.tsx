@@ -1100,10 +1100,12 @@ export default function ReviewPage() {
                   const letter = ['A','B','C','D'][j]
                   const isAns = letter === q.answer
                   const isPicked = answers[i] === letter
+                  // 過濾掉 AI 可能重複加的前綴（A. / A、 / (A) 等）
+                  const cleanOpt = String(opt).replace(/^[\(（]?[A-Da-d][\.\)\、\）]\s*/, '').replace(/^[A-Da-d]\s+/, '').trim()
                   return (
                     <button key={j} disabled={checked} onClick={() => setAnswers(a => ({ ...a, [i]: letter }))}
                       style={{ width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', cursor: checked ? 'default' : 'pointer', border: '1px solid', borderColor: checked ? (isAns ? '#10b981' : isPicked ? '#ef4444' : '#e2e8f0') : (isPicked ? '#2563eb' : '#e2e8f0'), background: checked ? (isAns ? '#f0fdf4' : isPicked ? '#fef2f2' : 'white') : (isPicked ? '#eff6ff' : 'white'), color: checked ? (isAns ? '#10b981' : isPicked ? '#ef4444' : '#64748b') : (isPicked ? '#2563eb' : '#334155') }}>
-                      {letter}. {opt}
+                      {letter}. {cleanOpt}
                     </button>
                   )
                 })}

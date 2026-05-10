@@ -38,7 +38,7 @@ export async function generateQuiz(p: { content:string; mode:string; difficulty:
   const mp: Record<string,string> = {
     summary: "從課文萃取"+p.count+"個必考知識點，JSON:{items:[{point,detail,importance:high|medium}]}",
     fill: "從課文出"+p.count+"題填空("+dm[p.difficulty]+")，"+lessonHint+"JSON:{questions:[{text:題目用___,blanks:[答案],hint,lesson:\"科目 第N課：標題\"}]}",
-    exam: "從課文出"+p.count+"題選擇題("+dm[p.difficulty]+")，每題4個選項，仿真段考難度，"+lessonHint+"JSON:{questions:[{type:\"choice\",text,options:[A,B,C,D],answer,explanation,lesson:\"科目 第N課：標題\"}]}",
+    exam: "從課文出"+p.count+"題選擇題("+dm[p.difficulty]+")，每題4個選項，仿真段考難度。重要：options陣列只放選項內容（純文字），不要在每個選項開頭加A./B./C./D.等字母前綴。"+lessonHint+"JSON:{questions:[{type:\"choice\",text,options:[\"純文字選項1\",\"純文字選項2\",\"純文字選項3\",\"純文字選項4\"],answer:\"A|B|C|D\",explanation,lesson:\"科目 第N課：標題\"}]}",
     knowledge: "將課文拆解為"+p.count+"個學習單元，JSON:{units:[{title,explanation,example,question,answer}]}",
   }
   const r = await anthropic.messages.create({ model:"claude-opus-4-5-20251101", max_tokens:4096,
