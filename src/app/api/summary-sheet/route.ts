@@ -69,8 +69,14 @@ export async function POST(request: Request) {
 - 內容（請完整讀過所有重點）：
 ${textbook.content}
 
+【尺寸絕對規則 - 違反就重做】
+- 容器必須是 1240×877 像素，不可大不可小
+- 所有內容必須完全在這個容器內
+- 最外層 div 必須有 width:1240px;height:877px;overflow:hidden
+- 任何內容超出邊界 = 失敗
+
 【核心目標】
-做一張 16:9 整理圖，把這課所有「考試會考的點」「需要背的點」「容易混淆的點」「老師會強調的點」全部塞進去。學生看完這一張，就不用再看課本。
+做一張 A4 橫向整理圖（寬 1240px × 高 877px，固定不變），把這課所有「考試會考的點」「需要背的點」「容易混淆的點」「老師會強調的點」全部塞進去。學生看完這一張，就不用再看課本。
 
 【強制規則 - 內容完整為最高優先】
 1. 整體尺寸：固定 寬 1240px、高 877px（A4 橫向滿版）
@@ -98,6 +104,11 @@ ${textbook.content}
    - 條列用「→」「、」連接同類項目，省空間
 
 9. 絕對禁止：position:absolute 重疊文字、transform 推擠
+10. 必須的 HTML 框架（不可改變外層結構）：
+    <div style="width:1240px;height:877px;padding:14px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;background:white;font-family:-apple-system,sans-serif">
+      [標題列 height:40px]
+      [grid 容器 flex:1, display:grid, gap:8px]
+    </div>
 10. 重要關鍵字仍要 <strong style="color:${colors.mid}"> 強調
 
 【內容要求 — 越多越好】
