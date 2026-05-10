@@ -461,6 +461,10 @@ export default function ReviewPage() {
           question: q.text,
           correct_answer: correctAns,
           student_answer: userAns,
+          options: q.options || null,
+          explanation: q.explanation || null,
+          lesson: q.lesson || null,
+          question_type: q.type || mode,
         })
       }
     })
