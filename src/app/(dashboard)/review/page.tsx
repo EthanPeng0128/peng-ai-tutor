@@ -329,7 +329,9 @@ export default function ReviewPage() {
       try {
         const payload = {
           childId,
-          title: `${selectedSubject || '題目'} ${selectedTextbooks.length === 1 ? (selectedTextbooks[0]?.title || '') : `${selectedTextbooks.length} 課`} ${mode === 'fill' ? '填空' : mode === 'exam' ? '模擬考' : '題目'}`,
+          title: selectedTextbooks.length === 1 
+            ? `${selectedSubject || ''} ${selectedTextbooks[0]?.lesson_number || ''} ${selectedTextbooks[0]?.title || ''}`.trim()
+            : `${selectedSubject || ''} ${selectedTextbooks.length} 課總複習（${mode === 'fill' ? '填空' : mode === 'exam' ? '模擬考' : '題目'}）`.trim(),
           subjectName: selectedSubject || '',
           textbookCount: selectedTextbooks.length,
           mode,
@@ -594,6 +596,17 @@ export default function ReviewPage() {
                           {qs.total_count} 題 · {qs.mode === 'fill' ? '填空' : qs.mode === 'exam' ? '模擬考' : qs.mode} · {new Date(qs.created_at).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}
                         </p>
                       </div>
+                      <button onClick={async () => {
+                          const newTitle = prompt('編輯題庫名稱：', qs.title)
+                          if (newTitle && newTitle.trim() && newTitle !== qs.title) {
+                            await supabase.from('quiz_sets').update({ title: newTitle.trim() }).eq('id', qs.id)
+                            const { data } = await supabase.from('quiz_sets').select('*, quiz_attempts(score, total, correct_rate, created_at)').eq('child_id', childId).order('created_at', { ascending: false })
+                            setQuizSets(data ?? [])
+                          }
+                        }}
+                        style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid #e0f2fe', background: '#f0f9ff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284c7', fontSize: '14px', marginRight: '4px' }}>
+                        ✏️
+                      </button>
                       <button onClick={async () => {
                           if (!confirm('確定刪除這套題目嗎？歷次成績紀錄也會一併刪除！')) return
                           await supabase.from('quiz_sets').delete().eq('id', qs.id)
