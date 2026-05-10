@@ -352,10 +352,21 @@ export default function ReviewPage() {
   async function checkAnswers() {
     const qs = result?.questions ?? []
     let correct = 0
+    const wrongQuestions: any[] = []
     qs.forEach((q: any, i: number) => {
       const userAns = (answers[i] ?? '').trim()
       const correctAns = (mode === 'exam' ? q.answer : q.blanks?.[0]) ?? ''
       if (userAns === correctAns) correct++
+      else {
+        wrongQuestions.push({
+          index: i,
+          text: q.text,
+          userAnswer: userAns,
+          correctAnswer: correctAns,
+          lesson: q.lesson,
+          explanation: q.explanation,
+        })
+      }
     })
     const s = Math.round((correct / qs.length) * 100)
     setScore(s); setChecked(true); setTimerActive(false)
@@ -365,6 +376,66 @@ export default function ReviewPage() {
       subject_name: refTextbook?.subject_name, activity_type: mode, score: s,
       total_questions: qs.length, correct_count: correct, duration_mins: Math.round(timer/60),
     })
+    
+    // 記錄重考成績到題庫
+    if (currentQuizSetId) {
+      try {
+        await fetch('/api/save-attempt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            quizSetId: currentQuizSetId,
+            childId,
+            score: correct,
+            total: qs.length,
+            answers,
+            durationSec: timer,
+          }),
+        })
+        const { data: qsData } = await supabase.from('quiz_sets').select('*, quiz_attempts(score, total, correct_rate, created_at)').eq('child_id', childId).order('created_at', { ascending: false })
+        setQuizSets(qsData ?? [])
+      } catch (e) {
+        console.error('儲存成績失敗', e)
+      }
+    }
+    
+    // 自動產生 AI 觀念分析（如果有錯題）
+    console.log('[exam-summary] 錯題:', wrongQuestions.length, 'selectedTextbooks:', selectedTextbooks.length)
+    if (wrongQuestions.length > 0) {
+      setSummaryLoading(true)
+      try {
+        const fullTextbooks = textbooks.filter(t => selectedIds.has(t.id))
+        const courseContent = fullTextbooks.map(t => `=== ${t.subject_name} ${t.lesson_number}：${t.title} ===
+${t.content || ''}`).join('
+
+').slice(0, 6000)
+        console.log('[exam-summary] content 長度:', courseContent.length)
+        const sumRes = await fetch('/api/exam-summary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wrongQuestions,
+            content: courseContent,
+            grade: fullTextbooks[0]?.grade || '國二',
+            childId,
+          }),
+        })
+        const sumData = await sumRes.json()
+        console.log('[exam-summary] 回應:', sumData)
+        if (sumData.summary) {
+          setExamSummary(sumData.summary)
+        } else if (sumData.error) {
+          alert('AI 分析失敗：' + sumData.error + (sumData.detail ? '
+' + sumData.detail : ''))
+        }
+      } catch (e: any) {
+        console.error('觀念總結失敗', e)
+        alert('AI 分析失敗：' + e.message)
+      }
+      setSummaryLoading(false)
+    } else {
+      setExamSummary(null)
+    }
   }
 
   async function saveWrongAnswers() {
