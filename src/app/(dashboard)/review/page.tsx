@@ -43,6 +43,8 @@ export default function ReviewPage() {
   const [viewingSummary, setViewingSummary] = useState<any>(null)
   const [quizSets, setQuizSets] = useState<any[]>([])
   const [currentQuizSetId, setCurrentQuizSetId] = useState<string|null>(null)
+  const [examSummary, setExamSummary] = useState<any>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
 
   useEffect(() => {
     const id = localStorage.getItem('selectedChildId') ?? ''
@@ -922,7 +924,53 @@ export default function ReviewPage() {
         <button onClick={checkAnswers} style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#2563eb', color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', marginTop: '8px' }}>批改答案</button>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-          {wrongSavedMsg && <div style={{ padding: '10px', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '8px', fontSize: '13px', color: '#166534', textAlign: 'center', fontWeight: 600 }}>{wrongSavedMsg}</div>}
+          {checked && examSummary && (
+        <div style={{ ...cardStyle, padding: '16px', marginBottom: '12px', background: 'linear-gradient(135deg, #fef3c7 0%, #fef9e7 100%)', border: '1.5px solid #fde68a' }}>
+          <p style={{ fontSize: '15px', fontWeight: 700, color: '#854f0b', margin: '0 0 12px' }}>
+            🤖 AI 觀念分析（{examSummary.weakConcepts?.length || 0} 個需加強的觀念）
+          </p>
+          {examSummary.weakConcepts?.map((wc: any, i: number) => (
+            <div key={i} style={{ background: 'white', borderRadius: '12px', padding: '14px', marginBottom: '10px', borderLeft: '4px solid #ef4444' }}>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', margin: '0 0 4px' }}>
+                🔴 第 {wc.questionIndex} 題：{wc.concept}
+              </p>
+              {wc.lesson && <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 10px' }}>📖 出自：{wc.lesson}</p>}
+              <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '10px 12px', marginBottom: '8px' }}>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: '#475569', margin: '0 0 4px' }}>📚 課本說明</p>
+                <p style={{ fontSize: '12px', color: '#1e293b', margin: 0, lineHeight: 1.6 }}>{wc.textbookExplanation}</p>
+              </div>
+              <div style={{ background: '#fef2f2', borderRadius: '8px', padding: '10px 12px', marginBottom: '8px' }}>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: '#991b1b', margin: '0 0 4px' }}>💡 你的盲點</p>
+                <p style={{ fontSize: '12px', color: '#1e293b', margin: 0, lineHeight: 1.6 }}>{wc.whyWrong}</p>
+              </div>
+              <div style={{ background: '#f0fdf4', borderRadius: '8px', padding: '10px 12px' }}>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: '#166534', margin: '0 0 4px' }}>✅ 正確推理</p>
+                <p style={{ fontSize: '12px', color: '#1e293b', margin: 0, lineHeight: 1.6 }}>{wc.correctReasoning}</p>
+              </div>
+            </div>
+          ))}
+          {examSummary.overallAdvice && (
+            <div style={{ background: 'white', borderRadius: '12px', padding: '14px', borderLeft: '4px solid #a78bfa', marginTop: '4px' }}>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#4c1d95', margin: '0 0 6px' }}>
+                💡 AI 學習建議
+              </p>
+              <p style={{ fontSize: '12px', color: '#1e293b', margin: 0, lineHeight: 1.7 }}>
+                {examSummary.overallAdvice}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {checked && summaryLoading && (
+        <div style={{ ...cardStyle, padding: '16px', marginBottom: '12px', textAlign: 'center', background: '#fef3c7' }}>
+          <p style={{ fontSize: '13px', color: '#854f0b', margin: 0 }}>
+            🤖 AI 正在分析你的弱點觀念...（約 30 秒）
+          </p>
+        </div>
+      )}
+
+      {wrongSavedMsg && <div style={{ padding: '10px', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '8px', fontSize: '13px', color: '#166534', textAlign: 'center', fontWeight: 600 }}>{wrongSavedMsg}</div>}
           {!savedSession && (
             <button onClick={saveWrongAnswers} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: '#f59e0b', color: 'white', border: 'none', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
               <Save size={16}/> 儲存錯題到錯題本
@@ -981,7 +1029,53 @@ export default function ReviewPage() {
         <button onClick={checkAnswers} style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#2563eb', color: 'white', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', marginTop: '8px' }}>繳交考卷</button>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-          {wrongSavedMsg && <div style={{ padding: '10px', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '8px', fontSize: '13px', color: '#166534', textAlign: 'center', fontWeight: 600 }}>{wrongSavedMsg}</div>}
+          {checked && examSummary && (
+        <div style={{ ...cardStyle, padding: '16px', marginBottom: '12px', background: 'linear-gradient(135deg, #fef3c7 0%, #fef9e7 100%)', border: '1.5px solid #fde68a' }}>
+          <p style={{ fontSize: '15px', fontWeight: 700, color: '#854f0b', margin: '0 0 12px' }}>
+            🤖 AI 觀念分析（{examSummary.weakConcepts?.length || 0} 個需加強的觀念）
+          </p>
+          {examSummary.weakConcepts?.map((wc: any, i: number) => (
+            <div key={i} style={{ background: 'white', borderRadius: '12px', padding: '14px', marginBottom: '10px', borderLeft: '4px solid #ef4444' }}>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', margin: '0 0 4px' }}>
+                🔴 第 {wc.questionIndex} 題：{wc.concept}
+              </p>
+              {wc.lesson && <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 10px' }}>📖 出自：{wc.lesson}</p>}
+              <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '10px 12px', marginBottom: '8px' }}>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: '#475569', margin: '0 0 4px' }}>📚 課本說明</p>
+                <p style={{ fontSize: '12px', color: '#1e293b', margin: 0, lineHeight: 1.6 }}>{wc.textbookExplanation}</p>
+              </div>
+              <div style={{ background: '#fef2f2', borderRadius: '8px', padding: '10px 12px', marginBottom: '8px' }}>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: '#991b1b', margin: '0 0 4px' }}>💡 你的盲點</p>
+                <p style={{ fontSize: '12px', color: '#1e293b', margin: 0, lineHeight: 1.6 }}>{wc.whyWrong}</p>
+              </div>
+              <div style={{ background: '#f0fdf4', borderRadius: '8px', padding: '10px 12px' }}>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: '#166534', margin: '0 0 4px' }}>✅ 正確推理</p>
+                <p style={{ fontSize: '12px', color: '#1e293b', margin: 0, lineHeight: 1.6 }}>{wc.correctReasoning}</p>
+              </div>
+            </div>
+          ))}
+          {examSummary.overallAdvice && (
+            <div style={{ background: 'white', borderRadius: '12px', padding: '14px', borderLeft: '4px solid #a78bfa', marginTop: '4px' }}>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#4c1d95', margin: '0 0 6px' }}>
+                💡 AI 學習建議
+              </p>
+              <p style={{ fontSize: '12px', color: '#1e293b', margin: 0, lineHeight: 1.7 }}>
+                {examSummary.overallAdvice}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {checked && summaryLoading && (
+        <div style={{ ...cardStyle, padding: '16px', marginBottom: '12px', textAlign: 'center', background: '#fef3c7' }}>
+          <p style={{ fontSize: '13px', color: '#854f0b', margin: 0 }}>
+            🤖 AI 正在分析你的弱點觀念...（約 30 秒）
+          </p>
+        </div>
+      )}
+
+      {wrongSavedMsg && <div style={{ padding: '10px', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '8px', fontSize: '13px', color: '#166534', textAlign: 'center', fontWeight: 600 }}>{wrongSavedMsg}</div>}
           {!savedSession && (
             <button onClick={saveWrongAnswers} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: '#f59e0b', color: 'white', border: 'none', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
               <Save size={16}/> 儲存錯題到錯題本
