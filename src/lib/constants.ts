@@ -17,7 +17,7 @@ export const DIFFICULTY_LEVELS = [
 export const QUIZ_MODES = [
   { value: 'summary', label: '重點整理', emoji: '📋', desc: 'AI 自動萃取必考知識點' },
   { value: 'fill', label: '填空複習', emoji: '✏️', desc: '自動挖空關鍵詞，即時批改' },
-  { value: 'exam', label: '模擬考卷', emoji: '📝', desc: '選擇題＋填充題，計時模式' },
+  { value: 'exam', label: '模擬考卷', emoji: '📝', desc: '全選擇題，計時模式（仿真段考）' },
   { value: 'knowledge', label: '知識點攻略', emoji: '🔊', desc: 'AI 說明每個知識點，再出例題' },
 ]
 export const SUBJECT_COLOR_MAP: Record<string, string> = { '國語':'#f0b429','英文':'#4f7ef5','數學':'#34d399','理化':'#fb923c','社會':'#a78bfa' }
